@@ -4,6 +4,8 @@ import time
 from autotest_lib.client.bin import test
 from autotest_lib.client.bin import utils
 
+from teuthology import ceph
+
 class cfuse_simple(test.test):
     version = 1
 
@@ -29,8 +31,8 @@ class cfuse_simple(test.test):
 
         os.mkdir('dev')
 
-        conf = os.path.join(self.bindir, 'ceph.conf')
-        ceph_bin = os.path.join(self.bindir, 'usr/local/bin')
+        self.ceph_conf = conf = os.path.join(self.bindir, 'ceph.conf')
+        self.ceph_bindir = ceph_bin = os.path.join(self.bindir, 'usr/local/bin')
 
         utils.system('{bindir}/osdmaptool --clobber --createsimple {num_osd} osdmap --pg_bits 2 --pgp_bits 4'.format(
                 num_osd=self.num_osd,
@@ -118,15 +120,7 @@ class cfuse_simple(test.test):
                     ))
             daemons.append(proc)
 
-        # wait until ceph is healthy
-        while True:
-            health = utils.run('{bindir}/ceph -c {conf} health --concise'.format(
-                    bindir=ceph_bin,
-                    conf=conf,
-                    ))
-            print 'Ceph health:', health
-            if health.stdout.split(None, 1)[0] == 'HEALTH_OK':
-                break
+        ceph.wait_until_healthy(self)
 
         utils.system('{bindir}/ceph -s -c {conf}'.format(
                 bindir=ceph_bin,
