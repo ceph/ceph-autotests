@@ -1,5 +1,4 @@
 import os
-import time
 
 from autotest_lib.client.bin import test
 from autotest_lib.client.bin import utils
@@ -135,19 +134,7 @@ class cfuse_simple(test.test):
                 mnt=mnt,
                 ))
 
-        while True:
-            result = utils.run("stat --file-system --printf='%T\n' -- {mnt}".format(mnt=mnt))
-            fstype = result.stdout.rstrip('\n')
-            if fstype == 'fuseblk':
-                break
-            print 'cfuse not yet mounted, got fs type {fstype!r}'.format(fstype=fstype)
-
-            # it shouldn't have exited yet; exposes some trivial problems
-            assert fuse.sp.poll() is None
-
-            time.sleep(1)
-        print 'Confirmed: cfuse is mounted.'
-
+        ceph.wait_until_fuse_mounted(self, fuse=fuse, mountpoint=mnt)
         try:
             one = os.path.join(mnt, 'one')
             with file(one, 'w') as f:

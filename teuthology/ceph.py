@@ -1,4 +1,5 @@
 import logging
+import time
 
 from autotest_lib.client.bin import utils
 
@@ -14,3 +15,20 @@ def wait_until_healthy(job):
         log.debug('Ceph health: %s', health)
         if health.stdout.split(None, 1)[0] == 'HEALTH_OK':
             break
+
+def wait_until_fuse_mounted(job, fuse, mountpoint):
+    while True:
+        result = utils.run(
+            "stat --file-system --printf='%T\n' -- {mnt}".format(mnt=mountpoint),
+            verbose=False,
+            )
+        fstype = result.stdout.rstrip('\n')
+        if fstype == 'fuseblk':
+            break
+        log.debug('cfuse not yet mounted, got fs type {fstype!r}'.format(fstype=fstype))
+
+        # it shouldn't have exited yet; exposes some trivial problems
+        assert fuse.sp.poll() is None
+
+        time.sleep(5)
+    log.info('cfuse is mounted on %s', mountpoint)
