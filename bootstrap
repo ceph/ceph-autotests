@@ -1,0 +1,16 @@
+#!/bin/sh
+set -e
+
+for package in python-dev python-pip python-virtualenv; do
+    if [ "$(dpkg --status -- $package|sed -n 's/^Status: //p')" != "install ok installed" ]; then
+	# add a space after old values
+	missing="${missing:+$missing }$package"
+    fi
+done
+if [ -n "$missing" ]; then
+    echo "$0: installing missing packages: $missing" 1>&2
+    aptdcon --install $missing
+fi
+
+pip -E virtualenv install -r requirements.txt
+./virtualenv/bin/python setup.py develop
