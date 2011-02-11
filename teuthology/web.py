@@ -27,6 +27,14 @@ class Teuthology(resource.Resource):
             'You need to specify the revision and test.\n',
             )
 
+    # autotest does a test fetch of this url, it has to be 200 ok
+    @resource.child('tarball/{rev}')
+    def tarball_rev(self, request, segments, **kw):
+        return http.ok(
+            [('Content-Type', 'text/plain')],
+            'You need to also specify the test you want.\n',
+            )
+
     @resource.child('tarball/{rev}/{test}')
     def tarball(self, request, segments, **kw):
         test = kw['test']

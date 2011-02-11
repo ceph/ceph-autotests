@@ -30,18 +30,19 @@ def test_tarball_slash():
     eq(res.body, 'You need to specify the revision and test.\n')
 
 def test_tarball_master():
+    # autotest requires this to serve something valid
     app = web.app_factory()
     app = webtest.TestApp(app)
-    res = app.get('/tarball/master', status=403)
+    res = app.get('/tarball/master')
     eq(res.headers['Content-Type'], 'text/plain')
-    eq(res.body, 'You need to specify the revision and test.\n')
+    eq(res.body, 'You need to also specify the test you want.\n')
 
 def test_tarball_master_slash():
     app = web.app_factory()
     app = webtest.TestApp(app)
-    res = app.get('/tarball/master/', status=403)
+    res = app.get('/tarball/master/')
     eq(res.headers['Content-Type'], 'text/plain')
-    eq(res.body, 'You need to specify the revision and test.\n')
+    eq(res.body, 'You need to also specify the test you want.\n')
 
 def test_tarball_simple():
     tmp = util.maketemp()
