@@ -54,7 +54,7 @@ class Tarball(resource.Resource):
         self.rev = rev
         self.test = test
 
-    def _archive(self, git_dir, rev, path, prefix=None):
+    def _archive(self, git_dir, rev, path=None, prefix=None):
         args = [
             'git',
             '--git-dir={git_dir}'.format(git_dir=git_dir),
@@ -66,8 +66,9 @@ class Tarball(resource.Resource):
         args.extend([
                 '--',
                 rev,
-                path,
                 ])
+        if path is not None:
+            args.append(path)
         proc = subprocess.Popen(
             args=args,
             env={},
@@ -101,8 +102,7 @@ class Tarball(resource.Resource):
         try:
             for (tarinfo, fileobj) in self._archive(
                 git_dir=git_dir,
-                rev='{rev}:tests/'.format(rev=self.rev),
-                path='{test}/'.format(test=self.test),
+                rev='{rev}:tests/{test}/'.format(rev=self.rev, test=self.test),
                 ):
                 tar_out.addfile(tarinfo, fileobj=fileobj)
         except GitArchiveError as e:
@@ -116,7 +116,6 @@ class Tarball(resource.Resource):
             git_dir=git_dir,
             rev='{rev}'.format(rev=self.rev),
             path='teuthology/'.format(test=self.test),
-            prefix='{test}/'.format(test=self.test),
             ):
             tar_out.addfile(tarinfo, fileobj=fileobj)
         tar_out.close()

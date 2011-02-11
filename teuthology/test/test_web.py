@@ -40,9 +40,9 @@ def test_tarball_master():
 def test_tarball_master_slash():
     app = web.app_factory()
     app = webtest.TestApp(app)
-    res = app.get('/tarball/master/')
+    res = app.get('/tarball/master/', status=403)
     eq(res.headers['Content-Type'], 'text/plain')
-    eq(res.body, 'You need to also specify the test you want.\n')
+    eq(res.body, 'You need to specify the revision and test.\n')
 
 def test_tarball_simple():
     tmp = util.maketemp()
@@ -84,41 +84,27 @@ def test_tarball_simple():
 
     ti = tar.next()
     assert ti is not None
-    eq(ti.name, 'fake')
-    eq(ti.type, tarfile.DIRTYPE)
-    eq('%o'%ti.mode, '775')
-
-    ti = tar.next()
-    assert ti is not None
-    eq(ti.name, 'fake/extra-stuff')
+    eq(ti.name, 'extra-stuff')
     eq(ti.type, tarfile.REGTYPE)
     eq('%o'%ti.mode, '775')
     eq(tar.extractfile(ti).read(), 'EXTRA')
 
     ti = tar.next()
     assert ti is not None
-    eq(ti.name, 'fake/fake.py')
+    eq(ti.name, 'fake.py')
     eq(ti.type, tarfile.REGTYPE)
     eq('%o'%ti.mode, '664')
     eq(tar.extractfile(ti).read(), 'faketest')
 
-    # this gets repeated because we're concatenating archives; it has
-    # no side effects
     ti = tar.next()
     assert ti is not None
-    eq(ti.name, 'fake')
+    eq(ti.name, 'teuthology')
     eq(ti.type, tarfile.DIRTYPE)
     eq('%o'%ti.mode, '775')
 
     ti = tar.next()
     assert ti is not None
-    eq(ti.name, 'fake/teuthology')
-    eq(ti.type, tarfile.DIRTYPE)
-    eq('%o'%ti.mode, '775')
-
-    ti = tar.next()
-    assert ti is not None
-    eq(ti.name, 'fake/teuthology/library-stuff-here')
+    eq(ti.name, 'teuthology/library-stuff-here')
     eq(ti.type, tarfile.REGTYPE)
     eq('%o'%ti.mode, '664')
     eq(tar.extractfile(ti).read(), 'fakelib')
