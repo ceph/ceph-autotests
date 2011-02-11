@@ -15,7 +15,7 @@ def wait_until_healthy(job):
                 ),
             verbose=False,
             )
-        log.debug('Ceph health: %s', health)
+        log.debug('Ceph health: %s', health.stdout.rstrip('\n'))
         if health.stdout.split(None, 1)[0] == 'HEALTH_OK':
             break
         time.sleep(1)
