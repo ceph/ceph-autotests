@@ -118,8 +118,15 @@ class cfuse_simple(test.test):
                     ))
             daemons.append(proc)
 
-        # TODO wait until healthy?
-        time.sleep(30)
+        # wait until ceph is healthy
+        while True:
+            health = utils.run('{bindir}/ceph -c {conf} health --concise'.format(
+                    bindir=ceph_bin,
+                    conf=conf,
+                    ))
+            print 'Ceph health:', health
+            if health.stdout.split(None, 1)[0] == 'HEALTH_OK':
+                break
 
         utils.system('{bindir}/ceph -s -c {conf}'.format(
                 bindir=ceph_bin,
