@@ -133,8 +133,6 @@ class cfuse_simple(test.test):
                 conf=conf,
                 mnt=mnt,
                 ))
-        # it shouldn't have exited yet; racy but exposes some trivial problems
-        assert fuse.sp.returncode is None
 
         while True:
             result = utils.run("stat --file-system --printf='%T\n' -- {mnt}".format(mnt=mnt))
@@ -142,6 +140,10 @@ class cfuse_simple(test.test):
             if fstype == 'fuseblk':
                 break
             print 'cfuse not yet mounted, got fs type {fstype!r}'.format(fstype=fstype)
+
+            # it shouldn't have exited yet; exposes some trivial problems
+            assert fuse.sp.poll() is None
+
             time.sleep(1)
         print 'Confirmed: cfuse is mounted.'
 
