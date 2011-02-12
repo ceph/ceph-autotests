@@ -38,10 +38,10 @@ setup:
 Running the tests
 =================
 
-Log in to the Autotest web UI, currently at the ugly URL of
-http://10.3.14.52/ . The username and password are separate from any
-other, and maintained in Autotest's MySQL database. For now, talk to
-tommi.virtanen@dreamhost.com.
+Log in to the Autotest web UI at http://autotest.ceph.newdream.net/
+(only accessible from the offce). The username and password are
+separate from any other, and maintained in Autotest's MySQL
+database. For now, talk to tommi.virtanen@dreamhost.com.
 
 From there, you can click *Create Job*, and
 
