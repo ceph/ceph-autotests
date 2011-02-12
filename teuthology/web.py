@@ -57,12 +57,12 @@ class Tarball(resource.Resource):
     def _archive(self, git_dir, rev, path=None, prefix=None):
         args = [
             'git',
-            '--git-dir={git_dir}'.format(git_dir=git_dir),
+            '--git-dir=%s' % git_dir,
             'archive',
             '--format=tar',
             ]
         if prefix is not None:
-            args.append('--prefix={prefix}'.format(prefix=prefix))
+            args.append('--prefix=%s' % prefix)
         args.extend([
                 '--',
                 rev,
@@ -95,14 +95,14 @@ class Tarball(resource.Resource):
         git_dir = request.environ['config']['git-dir']
         tmp = os.tmpfile()
         tar_out = tarfile.open(
-            name='/{test}.tar.bz2'.format(test=self.test),
+            name='/%s.tar.bz2' % self.test,
             mode='w|bz2',
             fileobj=tmp,
             )
         try:
             for (tarinfo, fileobj) in self._archive(
                 git_dir=git_dir,
-                rev='{rev}:tests/{test}/'.format(rev=self.rev, test=self.test),
+                rev='%s:tests/%s/' % (self.rev, self.test),
                 ):
                 tar_out.addfile(tarinfo, fileobj=fileobj)
         except GitArchiveError:
