@@ -105,7 +105,7 @@ class Tarball(resource.Resource):
                 rev='{rev}:tests/{test}/'.format(rev=self.rev, test=self.test),
                 ):
                 tar_out.addfile(tarinfo, fileobj=fileobj)
-        except GitArchiveError as e:
+        except GitArchiveError:
             return http.not_found(
                 [('Content-Type', 'text/plain')],
                 'Revision or test not found.\n',
