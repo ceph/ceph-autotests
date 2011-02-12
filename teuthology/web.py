@@ -114,8 +114,8 @@ class Tarball(resource.Resource):
         # this one is expected to work; don't catch exceptions
         for (tarinfo, fileobj) in self._archive(
             git_dir=git_dir,
-            rev='{rev}'.format(rev=self.rev),
-            path='teuthology/'.format(test=self.test),
+            rev=self.rev,
+            path='teuthology/',
             ):
             tar_out.addfile(tarinfo, fileobj=fileobj)
         tar_out.close()
