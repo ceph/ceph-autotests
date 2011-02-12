@@ -61,7 +61,7 @@ coordinates the test across machines. For now, let's concentrate on
 single-machine *client tests*. Here's an example::
 
   job.cache = False
-  job.run_test('http://ceph.dreamhost.com:8116/tarball/master/cfuse_simple.tar.bz2')
+  job.run_test('http://ceph.newdream.net:8116/tarball/master/cfuse_simple.tar.bz2')
 
 ``job.cache = False`` tells Autoserv that the ``run_test`` parameter
 URL is likely to change, and it should never use a cached tarball.
@@ -99,7 +99,7 @@ keyword argument in the control file::
 
   job.cache = False
   job.run_test(
-      url='http://ceph.dreamhost.com:8116/tarball/master/cfuse_simple.tar.bz2',
+      url='http://ceph.newdream.net:8116/tarball/master/cfuse_simple.tar.bz2',
       ceph_bin_url='http://something.example.com/me/mytar.tgz',
       )
 
