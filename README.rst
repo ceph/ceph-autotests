@@ -103,7 +103,11 @@ keyword argument in the control file::
       ceph_bin_url='http://something.example.com/me/mytar.tgz',
       )
 
-(TODO that is not implemented yet!)
+For example, you can get the previously autobuilt tarballs by using a URL like
+http://ceph.newdream.net/gitbuilder/tarball/sha1/x86_64.da6966958471db1dbf20f30e467221338b2b2e7d.tgz
+
+Note: you need to match architectures (``i686`` / ``x86_64``) manually,
+right now (TODO).
 
 Do not use IP addresses in the URL! Autotest reuses the URL as a
 Python package name, and leading numbers will break that

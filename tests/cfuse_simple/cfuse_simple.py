@@ -12,14 +12,10 @@ class cfuse_simple(test.test):
     num_osd = 1
     num_mds = 3
 
-    def setup(self):
-        url = 'http://ceph.newdream.net/gitbuilder/tarball/ref/origin_master.tgz'
-        tarball = os.path.join(self.tmpdir, 'ceph-bin.tgz')
-        utils.get_file(url, tarball)
-        utils.system('tar xzf {tarball} -C {bindir}'.format(tarball=tarball, bindir=self.bindir))
-        print 'Finished unpacking binary in:', self.bindir
+    def setup(self, **kwargs):
+        ceph.get_binaries(self, kwargs.get('ceph_bin_url'))
 
-    def run_once(self):
+    def run_once(self, **kwargs):
         print 'Entering tmp directory:', self.tmpdir
         os.chdir(self.tmpdir)
 

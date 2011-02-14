@@ -1,9 +1,21 @@
 import logging
+import os
 import time
 
 from autotest_lib.client.bin import utils
 
 log = logging.getLogger(__name__)
+
+def get_binaries(job, url=None):
+    """Fetch and unpack Ceph binary tarball."""
+    # TODO autodetect architecture
+    CEPH_BIN_DEFAULT_URL = 'http://ceph.newdream.net/gitbuilder/tarball/ref/origin_master.tgz'
+    if url is None:
+        url = CEPH_BIN_DEFAULT_URL
+    tarball = os.path.join(job.tmpdir, 'ceph-bin.tgz')
+    utils.get_file(url, tarball)
+    utils.system('tar xzf {tarball} -C {bindir}'.format(tarball=tarball, bindir=job.bindir))
+    log.info('Finished unpacking binary in: %s', job.bindir)
 
 def wait_until_healthy(job):
     """Wait until a Ceph cluster is healthy."""
