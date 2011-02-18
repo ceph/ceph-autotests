@@ -52,9 +52,7 @@ class cfuse_simple(test.test):
                 bindir=ceph_bin,
                 ))
 
-        utils.system('{bindir}/monmaptool --create --clobber --add 0 127.0.0.1:6789 --add 1 127.0.0.1:6790 --add 2 127.0.0.1:6791 --print monmap'.format(
-                bindir=ceph_bin,
-                ))
+        ceph.create_simple_monmap(self)
 
         daemons = []
 

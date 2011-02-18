@@ -63,3 +63,41 @@ def skeleton_config(job):
     # override this if you don't like it
     o.filename = os.path.join(job.tmpdir, 'ceph.conf')
     return o
+
+def create_simple_monmap(test):
+    """
+    Writes a simple monmap based on current ceph.conf into <tmpdir>/monmap.
+
+    Assumes test.ceph_conf is up to date.
+
+    Assumes mon sections are named "mon.*", with the dot.
+    """
+    def gen_addresses():
+        for section, data in test.ceph_conf.iteritems():
+            PREFIX = 'mon.'
+            if not section.startswith(PREFIX):
+                continue
+            name = section[len(PREFIX):]
+            addr = data['mon addr']
+            yield (name, addr)
+
+    addresses = list(gen_addresses())
+    assert addresses, "There are no monitors in config!"
+    log.debug('Ceph mon addresses: %s', addresses)
+
+    args = [
+        '--create',
+        '--clobber',
+        ]
+    for (name, addr) in addresses:
+        args.extend(('--add', name, addr))
+    args.extend([
+            '--print',
+            'monmap',
+            ])
+    utils.run(
+        command=os.path.join(test.ceph_bindir, 'monmaptool'),
+        args=args,
+        stdout_tee=utils.TEE_TO_LOGS,
+        stderr_tee=utils.TEE_TO_LOGS,
+        )
