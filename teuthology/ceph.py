@@ -1,3 +1,4 @@
+import configobj
 import logging
 import os
 import time
@@ -23,7 +24,7 @@ def wait_until_healthy(test):
         health = utils.run(
             '{bindir}/ceph -c {conf} health --concise'.format(
                 bindir=test.ceph_bindir,
-                conf=test.ceph_conf,
+                conf=test.ceph_conf.filename,
                 ),
             verbose=False,
             )
@@ -48,3 +49,17 @@ def wait_until_fuse_mounted(test, fuse, mountpoint):
 
         time.sleep(5)
     log.info('cfuse is mounted on %s', mountpoint)
+
+def skeleton_config(job):
+    """
+    Returns a ConfigObj that's prefilled with a skeleton config.
+
+    Use conf[section][key]=value or conf.merge to change it.
+
+    Use conf.write to write it out, override .filename first if you want.
+    """
+    path = os.path.join(os.path.dirname(__file__), 'ceph.conf')
+    o = configobj.ConfigObj(path, file_error=True)
+    # override this if you don't like it
+    o.filename = os.path.join(job.tmpdir, 'ceph.conf')
+    return o

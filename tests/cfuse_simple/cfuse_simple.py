@@ -26,13 +26,22 @@ class cfuse_simple(test.test):
 
         os.mkdir('dev')
 
-        self.ceph_conf = conf = os.path.join(self.bindir, 'ceph.conf')
+        self.ceph_conf = ceph.skeleton_config(self)
+        for id_ in range(self.num_mon):
+            section = 'mon.{id}'.format(id=id_)
+            self.ceph_conf.setdefault(section, {})
+            self.ceph_conf[section]['mon addr'] = '{ip}:{port}'.format(
+                ip=kwargs['server_ip'],
+                port=6789+id_,
+                )
+        self.ceph_conf.write()
+
         self.ceph_bindir = ceph_bin = os.path.join(self.bindir, 'usr/local/bin')
 
         utils.system('{bindir}/osdmaptool --clobber --createsimple {num_osd} osdmap --pg_bits 2 --pgp_bits 4'.format(
                 num_osd=self.num_osd,
                 bindir=ceph_bin,
-                conf=conf,
+                conf=self.ceph_conf.filename,
                 ))
 
         utils.system('{bindir}/cauthtool --create-keyring --gen-key --name=mon. ceph.keyring'.format(
@@ -53,12 +62,12 @@ class cfuse_simple(test.test):
             utils.system('{bindir}/cmon --mkfs -i {id} -c {conf} --monmap=monmap --osdmap=osdmap --keyring=ceph.keyring'.format(
                     bindir=ceph_bin,
                     id=id_,
-                    conf=conf,
+                    conf=self.ceph_conf.filename,
                     ))
             proc = utils.BgJob(command='{bindir}/cmon -i {id} -c {conf}'.format(
                     bindir=ceph_bin,
                     id=id_,
-                    conf=conf,
+                    conf=self.ceph_conf.filename,
                     ))
             daemons.append(proc)
 
@@ -70,7 +79,7 @@ class cfuse_simple(test.test):
             utils.system('{bindir}/cosd --mkfs -i {id} -c {conf}'.format(
                     bindir=ceph_bin,
                     id=id_,
-                    conf=conf,
+                    conf=self.ceph_conf.filename,
                     ))
             utils.system('{bindir}/cauthtool --create-keyring --gen-key --name=osd.{id} --cap mon "allow *" --cap osd "allow *" dev/osd.{id}.keyring'.format(
                     bindir=ceph_bin,
@@ -79,7 +88,7 @@ class cfuse_simple(test.test):
             utils.system('{bindir}/ceph -c {conf} -k ceph.keyring -i dev/osd.{id}.keyring auth add osd.{id}'.format(
                     bindir=ceph_bin,
                     id=id_,
-                    conf=conf,
+                    conf=self.ceph_conf.filename,
                     ))
 
         for id_ in range(self.num_mds):
@@ -90,12 +99,12 @@ class cfuse_simple(test.test):
             utils.system('{bindir}/ceph -c {conf} -k ceph.keyring -i dev/mds.{id}.keyring auth add mds.{id}'.format(
                     bindir=ceph_bin,
                     id=id_,
-                    conf=conf,
+                    conf=self.ceph_conf.filename,
                     ))
 
         utils.system('{bindir}/ceph -c {conf} -k ceph.keyring mds set_max_mds {num_mds}'.format(
                 bindir=ceph_bin,
-                conf=conf,
+                conf=self.ceph_conf.filename,
                 num_mds=self.num_mds,
                 ))
 
@@ -103,7 +112,7 @@ class cfuse_simple(test.test):
             proc = utils.BgJob(command='{bindir}/cosd -i {id} -c {conf}'.format(
                     bindir=ceph_bin,
                     id=id_,
-                    conf=conf,
+                    conf=self.ceph_conf.filename,
                     ))
             daemons.append(proc)
 
@@ -111,7 +120,7 @@ class cfuse_simple(test.test):
             proc = utils.BgJob(command='{bindir}/cmds -i {id} -c {conf}'.format(
                     bindir=ceph_bin,
                     id=id_,
-                    conf=conf,
+                    conf=self.ceph_conf.filename,
                     ))
             daemons.append(proc)
 
@@ -119,14 +128,14 @@ class cfuse_simple(test.test):
 
         utils.system('{bindir}/ceph -s -c {conf}'.format(
                 bindir=ceph_bin,
-                conf=conf,
+                conf=self.ceph_conf.filename,
                 ))
 
         mnt = os.path.join(self.tmpdir, 'mnt')
         os.mkdir(mnt)
         fuse = utils.BgJob(command='{bindir}/cfuse -c {conf} {mnt}'.format(
                 bindir=ceph_bin,
-                conf=conf,
+                conf=self.ceph_conf.filename,
                 mnt=mnt,
                 ))
 
