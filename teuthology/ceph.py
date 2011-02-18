@@ -10,13 +10,13 @@ log = logging.getLogger(__name__)
 def get_binaries(test, url=None):
     """Fetch and unpack Ceph binary tarball."""
     # TODO autodetect architecture
-    CEPH_BIN_DEFAULT_URL = 'http://ceph.newdream.net/gitbuilder/tarball/ref/origin_master.tgz'
+    CEPH_TARBALL_DEFAULT_URL = 'http://ceph.newdream.net/gitbuilder/tarball/ref/origin_master.tgz'
     if url is None:
-        url = CEPH_BIN_DEFAULT_URL
+        url = CEPH_TARBALL_DEFAULT_URL
     tarball = os.path.join(test.tmpdir, 'ceph-bin.tgz')
     utils.get_file(url, tarball)
     utils.system('tar xzf {tarball} -C {bindir}'.format(tarball=tarball, bindir=test.bindir))
-    log.info('Finished unpacking binary in: %s', test.bindir)
+    log.info('Finished unpacking binary tarball in: %s', test.bindir)
 
 def wait_until_healthy(test):
     """Wait until a Ceph cluster is healthy."""
