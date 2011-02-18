@@ -6,24 +6,24 @@ from autotest_lib.client.bin import utils
 
 log = logging.getLogger(__name__)
 
-def get_binaries(job, url=None):
+def get_binaries(test, url=None):
     """Fetch and unpack Ceph binary tarball."""
     # TODO autodetect architecture
     CEPH_BIN_DEFAULT_URL = 'http://ceph.newdream.net/gitbuilder/tarball/ref/origin_master.tgz'
     if url is None:
         url = CEPH_BIN_DEFAULT_URL
-    tarball = os.path.join(job.tmpdir, 'ceph-bin.tgz')
+    tarball = os.path.join(test.tmpdir, 'ceph-bin.tgz')
     utils.get_file(url, tarball)
-    utils.system('tar xzf {tarball} -C {bindir}'.format(tarball=tarball, bindir=job.bindir))
-    log.info('Finished unpacking binary in: %s', job.bindir)
+    utils.system('tar xzf {tarball} -C {bindir}'.format(tarball=tarball, bindir=test.bindir))
+    log.info('Finished unpacking binary in: %s', test.bindir)
 
-def wait_until_healthy(job):
+def wait_until_healthy(test):
     """Wait until a Ceph cluster is healthy."""
     while True:
         health = utils.run(
             '{bindir}/ceph -c {conf} health --concise'.format(
-                bindir=job.ceph_bindir,
-                conf=job.ceph_conf,
+                bindir=test.ceph_bindir,
+                conf=test.ceph_conf,
                 ),
             verbose=False,
             )
@@ -32,7 +32,7 @@ def wait_until_healthy(job):
             break
         time.sleep(1)
 
-def wait_until_fuse_mounted(job, fuse, mountpoint):
+def wait_until_fuse_mounted(test, fuse, mountpoint):
     while True:
         result = utils.run(
             "stat --file-system --printf='%T\n' -- {mnt}".format(mnt=mountpoint),
