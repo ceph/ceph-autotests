@@ -80,10 +80,10 @@ class cluster(test.test):
                     port=6789+id_,
                     )
 
-        for id_ in roles_of_type(my_roles, 'cfuse'):
-            section = 'cfuse.{id}'.format(id=id_)
+        for id_ in roles_of_type(my_roles, 'client'):
+            section = 'client.{id}'.format(id=id_)
             self.ceph_conf.setdefault(section, {})
-            self.ceph_conf[section]['keyring'] = 'cfuse.{id}.keyring'.format(id=id_)
+            self.ceph_conf[section]['keyring'] = 'client.{id}.keyring'.format(id=id_)
 
         self.ceph_conf.write()
         print 'Wrote config to', self.ceph_conf.filename
@@ -172,8 +172,9 @@ class cluster(test.test):
                     id=id_,
                     ))
 
-        for id_ in roles_of_type(my_roles, 'cfuse'):
-            utils.system('{bindir}/cauthtool --create-keyring --gen-key --name=cfuse.{id} cfuse.{id}.keyring'.format(
+        for id_ in roles_of_type(my_roles, 'client'):
+            # TODO this --name= is not really obeyed, all unknown "types" are munged to "client"
+            utils.system('{bindir}/cauthtool --create-keyring --gen-key --name=client.{id} client.{id}.keyring'.format(
                     bindir=ceph_bin,
                     id=id_,
                     ))
@@ -185,8 +186,8 @@ class cluster(test.test):
             publish.append('--publish=/key/osd.{id}.keyring:dev/osd.{id}.keyring'.format(id=id_))
         for id_ in roles_of_type(my_roles, 'mds'):
             publish.append('--publish=/key/mds.{id}.keyring:dev/mds.{id}.keyring'.format(id=id_))
-        for id_ in roles_of_type(my_roles, 'cfuse'):
-            publish.append('--publish=/key/cfuse.{id}.keyring:cfuse.{id}.keyring'.format(id=id_))
+        for id_ in roles_of_type(my_roles, 'client'):
+            publish.append('--publish=/key/client.{id}.keyring:client.{id}.keyring'.format(id=id_))
         key_serve = utils.BgJob(command='env PYTHONPATH={at_bindir} python -m teuthology.ceph_serve_file --port=11601 {publish}'.format(
                 at_bindir=self.bindir,
                 publish=' '.join(publish),
@@ -196,7 +197,7 @@ class cluster(test.test):
             for type_, caps in [
                 ('osd', '--cap mon "allow *" --cap osd "allow *"'),
                 ('mds', '--cap mon "allow *" --cap osd "allow *" --cap mds "allow"'),
-                ('cfuse', '--cap mon "allow r" --cap osd "allow rw pool=data" --cap mds "allow"'),
+                ('client', '--cap mon "allow r" --cap osd "allow rw pool=data" --cap mds "allow"'),
                 ]:
                 for idx, host_roles in enumerate(all_roles):
                     print 'Fetching {type} keys from host {idx} ({ip})...'.format(
@@ -234,7 +235,7 @@ class cluster(test.test):
                     num_mds=num_instances_of_type(all_roles, 'mds'),
                     ))
 
-        # wait until osd/mds/cfuse keys have been copied and authorized
+        # wait until osd/mds/client keys have been copied and authorized
         barrier_ids = ['{ip}#cluster'.format(ip=ip) for ip in all_ips]
         self.job.barrier(
             hostid=barrier_ids[number],
@@ -274,20 +275,22 @@ class cluster(test.test):
                     conf=self.ceph_conf.filename,
                     ))
 
-        # server is now healthy, wait until client is exporting its key
+        # server is now healthy
         barrier_ids = ['{ip}#cluster'.format(ip=ip) for ip in all_ips]
         self.job.barrier(
             hostid=barrier_ids[number],
             tag='healthy',
             ).rendezvous(*barrier_ids)
 
-        for id_ in roles_of_type(my_roles, 'cfuse'):
+        for id_ in roles_of_type(my_roles, 'client'):
+            # TODO support kernel clients too; must use same role due
+            # to "type" limitations
             mnt = os.path.join(self.tmpdir, 'mnt.{id}'.format(id=id_))
             os.mkdir(mnt)
             fuse = utils.BgJob(
                 # we could use -m instead of ceph.conf, but as we need
                 # ceph.conf to find the keyring anyway, it's not yet worth it
-                command='{bindir}/cfuse -c {conf} --name=cfuse {mnt}'.format(
+                command='{bindir}/cfuse -c {conf} {mnt}'.format(
                     bindir=ceph_bin,
                     conf=self.ceph_conf.filename,
                     mnt=mnt,
