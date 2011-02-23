@@ -64,7 +64,7 @@ def run((tag_name, cluster)):
 
 # log the failures
 for failure in failures:
-    job.record("FAIL", failure[0], "cfuse_client_server", failure[1])
+    job.record("FAIL", failure[0], "cluster", failure[1])
 
 named_clusters = [('cluster%d'%i,  machines) for (i, machines) in enumerate(clusters)]
 
