@@ -1,5 +1,6 @@
 import errno
 import os
+import signal
 import socket
 import urllib2
 
@@ -134,6 +135,8 @@ class cluster(test.test):
         if 'mon.0' in my_roles:
             mon0_serve.sp.terminate()
             utils.join_bg_jobs([mon0_serve])
+            assert mon0_serve.result.exit_status in [0, -signal.SIGTERM], \
+                'mon.0 key serving failed with: %r' % mon0_serve.result.exit_status
 
         daemons = []
 
@@ -243,6 +246,8 @@ class cluster(test.test):
             ).rendezvous(*barrier_ids)
         key_serve.sp.terminate()
         utils.join_bg_jobs([key_serve])
+        assert key_serve.result.exit_status in [0, -signal.SIGTERM], \
+            'general key serving failed with: %r' % key_serve.result.exit_status
 
         for id_ in roles_of_type(my_roles, 'osd'):
             os.mkdir(os.path.join('dev', 'osd.{id}.data'.format(id=id_)))
@@ -316,6 +321,8 @@ class cluster(test.test):
             finally:
                 print 'Waiting for cfuse to exit...'
                 utils.join_bg_jobs([fuse])
+                assert fuse.result.exit_status == 0, \
+                    'cfuse failed with: %r' % key_serve.result.exit_status
 
         # wait until client is done
         barrier_ids = ['{ip}#cluster'.format(ip=ip) for ip in all_ips]
@@ -327,3 +334,7 @@ class cluster(test.test):
         for d in daemons:
             d.sp.terminate()
         utils.join_bg_jobs(daemons)
+        for d in daemons:
+            # TODO daemons should catch sigterm and exit 0
+            assert d.result.exit_status in [0, -signal.SIGTERM], \
+                'daemon %r failed with: %r' % (d.result.command, d.result.exit_status)
