@@ -172,6 +172,12 @@ class cluster(test.test):
                     id=id_,
                     ))
 
+        for id_ in roles_of_type(my_roles, 'cfuse'):
+            utils.system('{bindir}/cauthtool --create-keyring --gen-key --name=cfuse.{id} cfuse.{id}.keyring'.format(
+                    bindir=ceph_bin,
+                    id=id_,
+                    ))
+
 
         # copy keys from osd
         publish = []
