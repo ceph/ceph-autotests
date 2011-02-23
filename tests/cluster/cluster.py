@@ -295,7 +295,8 @@ class cluster(test.test):
             fuse = utils.BgJob(
                 # we could use -m instead of ceph.conf, but as we need
                 # ceph.conf to find the keyring anyway, it's not yet worth it
-                command='{bindir}/cfuse -c {conf} --name=client.{id} {mnt}'.format(
+
+                command='{bindir}/cfuse -f -c {conf} --name=client.{id} {mnt}'.format(
                     bindir=ceph_bin,
                     conf=self.ceph_conf.filename,
                     id=id_,
