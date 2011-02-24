@@ -1,7 +1,10 @@
 import configobj
+import errno
 import logging
 import os
+import socket
 import time
+import urllib2
 
 from autotest_lib.client.bin import utils
 
@@ -101,3 +104,19 @@ def create_simple_monmap(test):
         stdout_tee=utils.TEE_TO_LOGS,
         stderr_tee=utils.TEE_TO_LOGS,
         )
+
+def urlretrieve_retry(url, filename):
+    # TODO handle ultimate timeout
+    while True:
+        try:
+            utils.urlretrieve(url=url, filename=filename)
+        except urllib2.URLError as e:
+            args = getattr(e, 'args', ())
+            if (args
+                and isinstance(e.args[0], socket.error)
+                and e.args[0].errno == errno.ECONNREFUSED):
+                pass
+            else:
+                raise
+        else:
+            break
