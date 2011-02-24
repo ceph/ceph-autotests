@@ -316,7 +316,7 @@ class cluster(test.test):
                     os.rename(aaa, bbb)
                     with file(bbb) as f:
                         data = f.read()
-                    assert data == 'foo\n'
+                    assert data == 'foo\n', 'read bad data: %r' % data
                     print 'cfuse read/write test ok'
                 finally:
                     utils.system('fusermount -u {mnt}'.format(mnt=mnt))
