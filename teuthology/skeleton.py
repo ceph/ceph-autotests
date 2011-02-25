@@ -69,7 +69,7 @@ class CephTest(test.test):
         self.my_roles = self.all_roles[self.number]
 
         self.ceph_bindir = os.path.join(self.bindir, 'usr/local/bin')
-        self.daemons = []
+        self.daemons = {}
 
         print 'Entering tmp directory:', self.tmpdir
         os.chdir(self.tmpdir)
@@ -214,7 +214,7 @@ class CephTest(test.test):
                     id=id_,
                     conf=self.ceph_conf.filename,
                     ))
-            self.daemons.append(proc)
+            self.daemons.setdefault('mon', []).append(proc)
 
     @role('mon')
     def do_049_daemons_mon_monmap_delete(self):
@@ -336,7 +336,7 @@ class CephTest(test.test):
                     id=id_,
                     conf=self.ceph_conf.filename,
                     ))
-            self.daemons.append(proc)
+            self.daemons.setdefault('osd', []).append(proc)
 
     @role('mds')
     def do_063_mds_start(self):
@@ -346,7 +346,7 @@ class CephTest(test.test):
                     id=id_,
                     conf=self.ceph_conf.filename,
                     ))
-            self.daemons.append(proc)
+            self.daemons.setdefault('mds', []).append(proc)
 
     @role('mon.0')
     def do_065_wait_healthy(self):
@@ -375,10 +375,11 @@ class CephTest(test.test):
             ).rendezvous(*barrier_ids)
 
     def do_950_daemon_shutdown(self):
-        for d in self.daemons:
+        daemons = sum([i for (_,i) in self.daemons.iteritems()],[])
+        for d in daemons:
             d.sp.terminate()
-        utils.join_bg_jobs(self.daemons)
-        for d in self.daemons:
+        utils.join_bg_jobs(daemons)
+        for d in daemons:
             # TODO daemons should catch sigterm and exit 0
             assert d.result.exit_status in [0, -signal.SIGTERM], \
                 'daemon %r failed with: %r' % (d.result.command, d.result.exit_status)
