@@ -146,18 +146,50 @@ Python library, which is bundled in the test ``.tar.bz2`` by
 Documentation for the library is in its source, as Python
 docstrings. See the subdirectory ``teuthology`` for more.
 
-A typical use will look something like this::
+As bringing up a Ceph cluster means coordinating actions over multiple
+machines, it is structured based on *roles* communicating with each
+other. Each role is one Ceph task to run, e.g. ``osd.3``. Multiple
+roles may and usually do reside on the same host.
 
-  from autotest_lib.client.bin import test
+.. figure:: ceph-skeleton.png
+
+   .. if you're reading the raw file, look at the file ceph-skeleton.png manually
+
+   .. or update it with
+   .. mscgen -T png -i ceph-skeleton.msc -o ceph-skeleton.png
+
+   Overall structure of a Ceph test.
+
+   Dashed horizontal lines are barriers that every node will cross at
+   the same time (faster ones wait for the slower ones).
+
+   Tests usually only need to customize the section labeled
+   here as ``mount``, ``test``, ``unmount``. Tests may e.g.  use
+   barriers internally to coordinate activity across nodes.
+
+The actions themselves are functions registered in hooks, with a
+number that decides their calling order. Everything before the
+``healthy`` barrier is <100; the ``done`` barrier is 900. Tests can
+put everything they need in between. A typical use will look something
+like this::
 
   from teuthology import ceph
+  from teuthology import skeleton
 
-  class cfuse_simple(test.test):
+  class cfuse_simple(skeleton.CephTest):
     ...
-    def run_once(self):
+    @skeleton.role('client')
+    def do_100_something(self):
         ...
-        ceph.wait_until_healthy(self)
-            ...
+
+The ``@role`` decorator is a convenience that only calls the function
+if the current machine has any role of the given type (when called
+like ``client``) or the exact role (when called like ``client.4``).
+You can pass multiple types/roles in a single call.
+
+You can override skeleton-provided actions by simply defining a method
+of the same name in the test.
+
 
 Using worker machines manually
 ==============================

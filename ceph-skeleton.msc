@@ -1,0 +1,48 @@
+# MSC for some fictional process
+msc {
+  arcgradient=16;
+
+  mon0 [label="mon.0"],
+  monN [label="mon.N (N>=1)"],
+  osdN [label="osd.N"],
+  mdsN [label="mds.N"],
+  clientN [label="client.N"];
+
+  mon0 rbox mon0 [label="create key mon."];
+  mon0 rbox mon0 [label="start serve"];
+  mon0 -> monN [label="copy mon., monmap"];
+  --- [label="mon0_copied"];
+  # msc doesn't understand lifelines; the above would extend here
+  mon0 rbox mon0 [label="stop serve"],
+  osdN rbox osdN [label="create key osd.N"],
+  mdsN rbox mdsN [label="create key mds.N"],
+  clientN rbox clientN [label="create key client.N"];
+  mon0 rbox monN [label="mon mkfs, etc"],
+  osdN rbox osdN [label="start serve"],
+  mdsN rbox mdsN [label="start serve"],
+  clientN rbox clientN [label="start serve"];
+  mon0 rbox monN [label="start cmon"];
+  mon0 <- osdN [label="copy"],
+  mon0 <- mdsN [label="copy"],
+  mon0 <- clientN [label="copy"];
+  mon0 rbox mon0 [label="auth add"];
+  --- [label="authorized"];
+  mon0 rbox mon0 [label="wait until healthy"],
+  # msc doesn't understand lifelines; the above would extend here
+  osdN rbox osdN [label="stop serve"],
+  mdsN rbox mdsN [label="stop serve"],
+  clientN rbox clientN [label="stop serve"];
+  osdN rbox osdN [label="cosd mkfs"],
+  mdsN rbox mdsN [label="start cmds"];
+  osdN rbox osdN [label="start cosd"];
+  --- [label="healthy"];
+  clientN rbox clientN [label="mount"];
+  mon0 rbox clientN [label="test"];
+  ...;
+  clientN rbox clientN [label="unmount"];
+  --- [label="done"];
+  # msc doesn't understand lifelines; the above would extend here
+  mon0 rbox monN [label="stop cmon"],
+  osdN rbox osdN [label="stop cosd"],
+  mdsN rbox mdsN [label="stop cmds"];
+}
