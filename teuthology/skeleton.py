@@ -374,10 +374,10 @@ class CephTest(test.test):
         role = 'client.{id}'.format(id=id_)
         return role in self.fuse_clients
 
-    @skeleton.role('client')
+    @role('client')
     def do_071_cfuse_mount(self):
         self.fuses = []
-        for id_ in skeleton.roles_of_type(self.my_roles, 'client'):
+        for id_ in roles_of_type(self.my_roles, 'client'):
             if not self.use_fuse(id_):
                 continue
             mnt = os.path.join(self.tmpdir, 'mnt.{id}'.format(id=id_))
@@ -398,10 +398,10 @@ class CephTest(test.test):
             self.fuses.append((mnt, fuse))
             ceph.wait_until_fuse_mounted(self, fuse=fuse, mountpoint=mnt)
 
-    @skeleton.role('client')
+    @role('client')
     def do_072_kernel_mount(self):
         self.mounts = []
-        for id_ in skeleton.roles_of_type(self.my_roles, 'client'):
+        for id_ in roles_of_type(self.my_roles, 'client'):
             if self.use_fuse(id_):
                 continue
             mnt = os.path.join(self.tmpdir, 'mnt.{id}'.format(id=id_))
@@ -442,7 +442,7 @@ class CephTest(test.test):
                 )
             self.mounts.append(mnt)
 
-    @skeleton.role('client')
+    @role('client')
     def do_901_cfuse_unmount(self):
         for mnt, fuse in self.fuses:
             utils.system('fusermount -u {mnt}'.format(mnt=mnt))
@@ -451,7 +451,7 @@ class CephTest(test.test):
             assert fuse.result.exit_status == 0, \
                 'cfuse failed with: %r' % fuse.result.exit_status
 
-    @skeleton.role('client')
+    @role('client')
     def do_902_kernel_unmount(self):
         for mnt in self.mounts:
             utils.system('umount {mnt}'.format(mnt=mnt))
