@@ -67,6 +67,7 @@ class CephTest(test.test):
         self.all_roles = kwargs['all_roles']
         self.all_ips = kwargs['all_ips']
         self.my_roles = self.all_roles[self.number]
+        self.fuse_clients = kwargs.get('fuse_clients', [])
 
         self.ceph_bindir = os.path.join(self.bindir, 'usr/local/bin')
         self.daemons = []
@@ -366,7 +367,96 @@ class CephTest(test.test):
             tag='healthy',
             ).rendezvous(*barrier_ids)
 
-    def do_900_barrier_done(self):
+    def use_fuse(self, id_):
+        """
+        Use FUSE for mounting client with given id, or not?
+        """
+        role = 'client.{id}'.format(id=id_)
+        return role in self.fuse_clients
+
+    @skeleton.role('client')
+    def do_071_cfuse_mount(self):
+        self.fuses = []
+        for id_ in skeleton.roles_of_type(self.my_roles, 'client'):
+            if not self.use_fuse(id_):
+                continue
+            mnt = os.path.join(self.tmpdir, 'mnt.{id}'.format(id=id_))
+            os.mkdir(mnt)
+            fuse = utils.BgJob(
+                # we could use -m instead of ceph.conf, but as we need
+                # ceph.conf to find the keyring anyway, it's not yet worth it
+
+                command='{bindir}/cfuse -f -c {conf} --name=client.{id} {mnt}'.format(
+                    bindir=self.ceph_bindir,
+                    conf=self.ceph_conf.filename,
+                    id=id_,
+                    mnt=mnt,
+                    ),
+                stdout_tee=utils.TEE_TO_LOGS,
+                stderr_tee=utils.TEE_TO_LOGS,
+                )
+            self.fuses.append((mnt, fuse))
+            ceph.wait_until_fuse_mounted(self, fuse=fuse, mountpoint=mnt)
+
+    @skeleton.role('client')
+    def do_072_kernel_mount(self):
+        self.mounts = []
+        for id_ in skeleton.roles_of_type(self.my_roles, 'client'):
+            if self.use_fuse(id_):
+                continue
+            mnt = os.path.join(self.tmpdir, 'mnt.{id}'.format(id=id_))
+            os.mkdir(mnt)
+            ceph_sbindir = os.path.join(self.bindir, 'usr/local/sbin')
+
+            mons = []
+            for idx, roles in enumerate(self.all_roles):
+                for role in roles:
+                    if not role.startswith('mon.'):
+                        continue
+                    mon_id = int(role[len('mon.'):])
+                    addr = '{ip}:{port}'.format(
+                        ip=self.all_ips[idx],
+                        port=6789+mon_id,
+                        )
+                    mons.append(addr)
+            assert mons
+
+            secret = utils.run(
+                '{bindir}/cauthtool client.{id}.keyring -c {conf} --name=client.{id} -p'.format(
+                    bindir=self.ceph_bindir,
+                    conf=self.ceph_conf.filename,
+                    id=id_,
+                    ),
+                verbose=False,
+                )
+            secret = secret.stdout.rstrip('\n')
+
+            # the arguments MUST be in this order
+            utils.system('{sbindir}/mount.ceph {mons}:/ {mnt} -v -o name={id},secret={secret}'.format(
+                    sbindir=ceph_sbindir,
+                    mons=','.join(mons),
+                    mnt=mnt,
+                    id=id_,
+                    secret=secret,
+                    ),
+                )
+            self.mounts.append(mnt)
+
+    @skeleton.role('client')
+    def do_901_cfuse_unmount(self):
+        for mnt, fuse in self.fuses:
+            utils.system('fusermount -u {mnt}'.format(mnt=mnt))
+            print 'Waiting for cfuse to exit...'
+            utils.join_bg_jobs([fuse])
+            assert fuse.result.exit_status == 0, \
+                'cfuse failed with: %r' % fuse.result.exit_status
+
+    @skeleton.role('client')
+    def do_902_kernel_unmount(self):
+        for mnt in self.mounts:
+            utils.system('umount {mnt}'.format(mnt=mnt))
+
+    def do_910_barrier_done(self):
         # wait until client is done
         barrier_ids = ['{ip}#cluster'.format(ip=ip) for ip in self.all_ips]
         self.job.barrier(
