@@ -5,7 +5,7 @@ from autotest_lib.client.bin import utils
 from teuthology import ceph
 from teuthology import skeleton
 
-class bonnie(skeleton.CephTest):
+class ceph_bonnie(skeleton.CephTest):
     version = 1
 
     @skeleton.role('client')
