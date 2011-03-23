@@ -63,11 +63,13 @@ class CephTest(test.test):
         ceph.get_binaries(self, kwargs.get('ceph_bin_url'))
 
     def run_once(self, **kwargs):
-        self.number = kwargs['number']
-        self.all_roles = kwargs['all_roles']
-        self.all_ips = kwargs['all_ips']
+        self.number = kwargs.pop('number')
+        self.all_roles = kwargs.pop('all_roles')
+        self.all_ips = kwargs.pop('all_ips')
         self.my_roles = self.all_roles[self.number]
-        self.fuse_clients = kwargs.get('fuse_clients', [])
+        kwargs.setdefault('fuse_clients', [])
+        self.fuse_clients = kwargs.pop('fuse_clients')
+        self.extra = kwargs
 
         self.ceph_bindir = os.path.join(self.bindir, 'usr/local/bin')
         self.daemons = []
