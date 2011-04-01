@@ -1,0 +1,78 @@
+import json
+
+from autotest_lib.server import autotest, hosts, subcommand
+from autotest_lib.server import utils
+
+TEST_URL = 'http://ceph.newdream.net:8116/tarball/master/rbd_iozone.tar.bz2'
+
+ROLES = [
+    [
+        'mon.0',
+        'mds.0',
+        ],
+    [
+        'mon.1',
+        'mds.1',
+        ],
+    [
+        'mon.2',
+        'mds.2',
+        ],
+    [
+        'osd.0',
+        ],
+    [
+        'osd.1',
+        ],
+    [
+        'client.0',
+        ],
+    ]
+
+CLIENT_TYPES = {
+    'client.0': 'rbd',
+    }
+
+IOZONE_ARGS = '-a -e -K -Q -R'
+
+def run((tag_name, cluster)):
+    assert len(cluster) == len(ROLES)
+    all_hosts = [hosts.create_host(host_name) for host_name in cluster]
+    all_at = [autotest.Autotest(host) for host in all_hosts]
+
+    # we exploit the fact that JSON is always valid python, and use
+    # that as a safe method of passing in data to the code template
+    template = "job.cache=False; job.run_test(**{data})"
+
+    def g():
+        for i in range(len(ROLES)):
+            control_file = template.format(data=json.dumps(dict(
+                        url=TEST_URL,
+                        number=i,
+                        all_roles=ROLES,
+                        all_ips=[host.ip for host in all_hosts],
+                        client_types=CLIENT_TYPES,
+                        tag=tag_name,
+                        rbd_iozone_args=IOZONE_ARGS,
+                    )))
+
+            command = subcommand.subcommand(
+                all_at[i].run,
+                [control_file, all_hosts[i].hostname],
+                )
+            yield command
+
+    subcommand.parallel(list(g()))
+
+# grab the pairs (and failures)
+(clusters, failures) = utils.form_ntuples_from_machines(machines, len(ROLES))
+
+# log the failures
+for failure in failures:
+    job.record("FAIL", failure[0], "rbd_iozone", failure[1])
+
+named_clusters = [('cluster%d'%i,  machines) for (i, machines) in enumerate(clusters)]
+
+# now run through each pair and run
+job.cache = False
+job.parallel_simple(run, named_clusters, log=False)
