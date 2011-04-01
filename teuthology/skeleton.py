@@ -2,6 +2,7 @@ import functools
 import gzip
 import os
 import signal
+import stat
 
 from autotest_lib.client.bin import test
 from autotest_lib.client.bin import utils
@@ -300,7 +301,7 @@ class CephTest(test.test):
             for type_, caps in [
                 ('osd', '--cap mon "allow *" --cap osd "allow *"'),
                 ('mds', '--cap mon "allow *" --cap osd "allow *" --cap mds "allow"'),
-                ('client', '--cap mon "allow r" --cap osd "allow rw pool=data" --cap mds "allow"'),
+                ('client', '--cap mon "allow rw" --cap osd "allow rwx pool=data,rbd" --cap mds "allow"'),
                 ]:
                 for idx, host_roles in enumerate(self.all_roles):
                     print 'Fetching {type} keys from host {idx} ({ip})...'.format(
@@ -453,6 +454,124 @@ class CephTest(test.test):
                 )
             self.mounts.append(mnt)
 
+    @role('mon.0')
+    def do_073_rbd_activate(self):
+        if 'rbd' not in self.client_types.values():
+            return
+
+        rbd_file = os.path.join(self.ceph_libdir, 'rados-classes/libcls_rbd.so')
+        cls_info = utils.run('{bindir}/cclsinfo {class_file}'.format(
+                bindir=self.ceph_bindir,
+                class_file=rbd_file,
+                ))
+        cls_info = cls_info.stdout.rstrip('\n')
+        utils.system('{bindir}/ceph -c {conf} --name client.admin class add -i {rbd_file} {cls_info}'.format(
+                bindir=self.ceph_bindir,
+                conf=self.ceph_conf.filename,
+                rbd_file=rbd_file,
+                cls_info=cls_info,
+                ))
+        utils.system('{bindir}/ceph -c {conf} --name client.admin class activate rbd {rbd_version}'.format(
+                bindir=self.ceph_bindir,
+                conf=self.ceph_conf.filename,
+                rbd_version='1.3',
+                ))
+
+    @role('mon.0')
+    def do_074_create_rbd(self):
+        for roles in self.all_roles:
+            for role in roles:
+                if not role.startswith('client.'):
+                    continue
+                id_ = int(role[len('client.'):])
+                if not self.client_is_type(id_, 'rbd'):
+                    continue
+
+                LD_LIB = os.getenv('LD_LIBRARY_PATH', '')
+                if self.ceph_libdir not in LD_LIB:
+                    os.putenv('LD_LIBRARY_PATH', LD_LIB + ':' + self.ceph_libdir)
+                utils.run('{bindir}/rbd create -s {size} {name}'.format(
+                        bindir=self.ceph_bindir,
+                        size=4096,
+                        name='testimage{id}'.format(id=id_),
+                        ))
+
+    def do_075_barrier_rbd_created(self):
+        if 'rbd' not in self.client_types.values():
+            return
+        # rbd images have been created
+        barrier_ids = ['{ip}#cluster'.format(ip=ip) for ip in self.all_ips]
+        self.job.barrier(
+            hostid=barrier_ids[self.number],
+            tag='rbd_images_created',
+            ).rendezvous(*barrier_ids)
+
+    @role('client')
+    def do_076_rbd_modprobe(self):
+        for id_ in roles_of_type(self.my_roles, 'client'):
+            if self.client_is_type(id_, 'rbd'):
+                utils.run('modprobe rbd')
+                return
+
+    @role('client')
+    def do_077_rbd_dev_create(self):
+        self.rbd_dev_ids = {}
+        for id_ in roles_of_type(self.my_roles, 'client'):
+            if not self.client_is_type(id_, 'rbd'):
+                continue
+
+            image_name = 'testimage{id}'.format(id=id_)
+            secret = self.get_secret(id_)
+
+            with open('/sys/bus/rbd/add', 'w') as add_file:
+                add_file.write('{mons} name={name},secret={secret} rbd {image}'.format(
+                        mons=','.join(self.get_mons().values()),
+                        name=id_,
+                        secret=secret,
+                        image=image_name,
+                        ),
+                    )
+
+            basepath = '/sys/bus/rbd/devices'
+            for dev_id in os.listdir(basepath):
+                devpath = os.path.join(basepath, dev_id)
+                name = utils.run('cat {file}'.format(file=os.path.join(devpath, 'name')))
+                name = name.stdout.rstrip('\n')
+                major = utils.run('cat {file}'.format(file=os.path.join(devpath, 'major')))
+                major = int(major.stdout.rstrip('\n'))
+
+                if name == image_name:
+                    try:
+                        os.stat('/dev/rbd')
+                    except OSError as err:
+                        import errno
+                        assert(err.errno == errno.ENOENT)
+                        os.mkdir('/dev/rbd')
+
+                    os.mknod('/dev/rbd/{image}'.format(image=image_name),
+                             0600 | stat.S_IFBLK,
+                             os.makedev(major, 0),
+                             )
+                    self.rbd_dev_ids[image_name] = dev_id
+
+    @role('client')
+    def do_078_rbd_preparefs(self):
+        for id_ in roles_of_type(self.my_roles, 'client'):
+            if not self.client_is_type(id_, 'rbd'):
+                continue
+            image_name = 'testimage{id}'.format(id=id_)
+            utils.system('mke2fs -t ext3 /dev/rbd/{image}'.format(image=image_name))
+
+    @role('client')
+    def do_079_rbd_mount(self):
+        for id_ in roles_of_type(self.my_roles, 'client'):
+            if not self.client_is_type(id_, 'rbd'):
+                continue
+            image_name = 'testimage{id}'.format(id=id_)
+            mnt = os.path.join(self.tmpdir, image_name)
+            os.mkdir(mnt)
+            utils.system('mount -t ext3 /dev/rbd/{image} {mnt}'.format(image=image_name, mnt=mnt))
+
     @role('client')
     def do_901_cfuse_unmount(self):
         for mnt, fuse in self.fuses:
@@ -466,6 +585,28 @@ class CephTest(test.test):
     def do_902_kernel_unmount(self):
         for mnt in self.mounts:
             utils.system('umount {mnt}'.format(mnt=mnt))
+
+    @role('client')
+    def do_903_rbd_kernel_unmount(self):
+        kernel_mounted = False
+        for id_ in roles_of_type(self.my_roles, 'client'):
+            if not self.client_is_type(id_, 'rbd'):
+                continue
+            kernel_mounted = True
+            image_name = 'testimage{id}'.format(id=id_)
+            mnt = os.path.join(self.tmpdir, image_name)
+            utils.system('umount {path}'.format(path=mnt))
+            os.rmdir(mnt)
+            os.remove('/dev/rbd/{image}'.format(image=image_name))
+
+        if kernel_mounted:
+            os.rmdir('/dev/rbd')
+
+    @role('client')
+    def do_904_rbd_dev_remove(self):
+        for dev_id in self.rbd_dev_ids.itervalues():
+            with open('/sys/bus/rbd/remove', 'w') as rem_file:
+                rem_file.write(dev_id)
 
     def do_910_barrier_done(self):
         # wait until client is done
