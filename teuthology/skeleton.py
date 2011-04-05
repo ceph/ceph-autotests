@@ -86,6 +86,21 @@ class CephTest(test.test):
             fn = getattr(self, name)
             fn()
 
+    def get_mons(self):
+        mons = {}
+        for idx, roles in enumerate(self.all_roles):
+            for role in roles:
+                if not role.startswith('mon.'):
+                    continue
+                mon_id = int(role[len('mon.'):])
+                addr = '{ip}:{port}'.format(
+                    ip=self.all_ips[idx],
+                    port=6789+mon_id,
+                    )
+                mons[role] = addr
+        assert mons
+        return mons
+
     def do_010_announce(self):
         print 'This is host #%d with roles %s...' % (self.number, self.my_roles)
 
@@ -102,16 +117,10 @@ class CephTest(test.test):
         self.ceph_conf = ceph.skeleton_config(self)
 
     def do_021_conf_add_mons(self):
-        for idx, roles in enumerate(self.all_roles):
-            for role in roles:
-                if not role.startswith('mon.'):
-                    continue
-                id_ = int(role[len('mon.'):])
-                self.ceph_conf.setdefault(role, {})
-                self.ceph_conf[role]['mon addr'] = '{ip}:{port}'.format(
-                    ip=self.all_ips[idx],
-                    port=6789+id_,
-                    )
+        mons = self.get_mons()
+        for role, addr in mons.iteritems():
+            self.ceph_conf.setdefault(role, {})
+            self.ceph_conf[role]['mon addr'] = addr
 
     @role('client')
     def do_025_conf_client_keyring(self):
@@ -410,19 +419,7 @@ class CephTest(test.test):
             os.mkdir(mnt)
             ceph_sbindir = os.path.join(self.bindir, 'usr/local/sbin')
 
-            mons = []
-            for idx, roles in enumerate(self.all_roles):
-                for role in roles:
-                    if not role.startswith('mon.'):
-                        continue
-                    mon_id = int(role[len('mon.'):])
-                    addr = '{ip}:{port}'.format(
-                        ip=self.all_ips[idx],
-                        port=6789+mon_id,
-                        )
-                    mons.append(addr)
-            assert mons
-
+            mons = self.get_mons().values()
             secret = utils.run(
                 '{bindir}/cauthtool client.{id}.keyring -c {conf} --name=client.{id} -p'.format(
                     bindir=self.ceph_bindir,
