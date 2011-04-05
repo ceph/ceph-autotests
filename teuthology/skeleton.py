@@ -101,6 +101,18 @@ class CephTest(test.test):
         assert mons
         return mons
 
+    def get_secret(self, id_):
+        secret = utils.run(
+            '{bindir}/cauthtool client.{id}.keyring -c {conf} --name=client.{id} -p'.format(
+                bindir=self.ceph_bindir,
+                conf=self.ceph_conf.filename,
+                id=id_,
+                ),
+            verbose=False,
+            )
+        secret = secret.stdout.rstrip('\n')
+        return secret
+
     def do_010_announce(self):
         print 'This is host #%d with roles %s...' % (self.number, self.my_roles)
 
@@ -420,15 +432,7 @@ class CephTest(test.test):
             ceph_sbindir = os.path.join(self.bindir, 'usr/local/sbin')
 
             mons = self.get_mons().values()
-            secret = utils.run(
-                '{bindir}/cauthtool client.{id}.keyring -c {conf} --name=client.{id} -p'.format(
-                    bindir=self.ceph_bindir,
-                    conf=self.ceph_conf.filename,
-                    id=id_,
-                    ),
-                verbose=False,
-                )
-            secret = secret.stdout.rstrip('\n')
+            secret = self.get_secret(id_)
 
             # the arguments MUST be in this order
             utils.system('{sbindir}/mount.ceph {mons}:/ {mnt} -v -o name={id},secret={secret}'.format(
