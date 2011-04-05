@@ -67,8 +67,8 @@ class CephTest(test.test):
         self.all_roles = kwargs.pop('all_roles')
         self.all_ips = kwargs.pop('all_ips')
         self.my_roles = self.all_roles[self.number]
-        kwargs.setdefault('fuse_clients', [])
-        self.fuse_clients = kwargs.pop('fuse_clients')
+        kwargs.setdefault('client_types', {})
+        self.client_types = kwargs.pop('client_types')
         self.extra = kwargs
 
         self.ceph_bindir = os.path.join(self.bindir, 'usr/local/bin')
@@ -390,18 +390,18 @@ class CephTest(test.test):
             tag='healthy',
             ).rendezvous(*barrier_ids)
 
-    def use_fuse(self, id_):
+    def client_is_type(self, id_, type_):
         """
-        Use FUSE for mounting client with given id, or not?
+        Use the given type for mounting client with given id, or not?
         """
         role = 'client.{id}'.format(id=id_)
-        return role in self.fuse_clients
+        return type_ == self.client_types.get(role, 'kclient')
 
     @role('client')
     def do_071_cfuse_mount(self):
         self.fuses = []
         for id_ in roles_of_type(self.my_roles, 'client'):
-            if not self.use_fuse(id_):
+            if not self.client_is_type(id_, 'cfuse'):
                 continue
             mnt = os.path.join(self.tmpdir, 'mnt.{id}'.format(id=id_))
             os.mkdir(mnt)
@@ -425,7 +425,7 @@ class CephTest(test.test):
     def do_072_kernel_mount(self):
         self.mounts = []
         for id_ in roles_of_type(self.my_roles, 'client'):
-            if self.use_fuse(id_):
+            if not self.client_is_type(id_, 'kclient'):
                 continue
             mnt = os.path.join(self.tmpdir, 'mnt.{id}'.format(id=id_))
             os.mkdir(mnt)

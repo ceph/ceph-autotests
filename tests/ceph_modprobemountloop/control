@@ -33,9 +33,9 @@ ROLES = [
         ],
     ]
 
-FUSE_CLIENTS = [
-    # 'client.0',
-    ]
+CLIENT_TYPES = {
+    'client.0': 'kclient',
+    }
 
 def run((tag_name, cluster)):
     assert len(cluster) == len(ROLES)
@@ -53,7 +53,7 @@ def run((tag_name, cluster)):
                         number=i,
                         all_roles=ROLES,
                         all_ips=[host.ip for host in all_hosts],
-			fuse_clients=FUSE_CLIENTS,
+                        client_types=CLIENT_TYPES,
                         tag=tag_name,
                     )))
 
