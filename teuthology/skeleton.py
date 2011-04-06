@@ -125,6 +125,10 @@ class CephTest(test.test):
     def do_015_dev(self):
         os.mkdir('dev')
 
+    @role('osd')
+    def do_015_class_tmp(self):
+        os.mkdir('class_tmp')
+
     def do_020_conf_create(self):
         self.ceph_conf = ceph.skeleton_config(self)
 
