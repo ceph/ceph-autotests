@@ -72,6 +72,9 @@ class CephTest(test.test):
         self.extra = kwargs
 
         self.ceph_bindir = os.path.join(self.bindir, 'usr/local/bin')
+        self.ceph_pydir = os.path.join(self.bindir,
+            'usr/local/lib/python2.6/dist-packages')
+        self.ceph_libdir = os.path.join(self.bindir, 'usr/local/lib')
         self.daemons = []
 
         print 'Entering tmp directory:', self.tmpdir
