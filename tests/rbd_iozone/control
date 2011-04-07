@@ -33,6 +33,15 @@ CLIENT_TYPES = {
     'client.0': 'rbd',
     }
 
+CLIENT_CONFIGS = {
+    'client.0': {
+        'rbd_kernel_mount' : True,
+        'rbd_create'       : True,
+        'rbd_fs'           : 'ext3',
+        'rbd_size'         : 4096,
+        },
+    }
+
 IOZONE_ARGS = '-a -e -K -Q -R'
 
 def run((tag_name, cluster)):
@@ -40,9 +49,7 @@ def run((tag_name, cluster)):
     all_hosts = [hosts.create_host(host_name) for host_name in cluster]
     all_at = [autotest.Autotest(host) for host in all_hosts]
 
-    # we exploit the fact that JSON is always valid python, and use
-    # that as a safe method of passing in data to the code template
-    template = "job.cache=False; job.run_test(**{data})"
+    template = "import json; data=json.loads({data!r}); job.cache=False; job.run_test(**data)"
 
     def g():
         for i in range(len(ROLES)):
@@ -52,6 +59,7 @@ def run((tag_name, cluster)):
                         all_roles=ROLES,
                         all_ips=[host.ip for host in all_hosts],
                         client_types=CLIENT_TYPES,
+                        client_configs=CLIENT_CONFIGS,
                         tag=tag_name,
                         rbd_iozone_args=IOZONE_ARGS,
                     )))

@@ -59,6 +59,12 @@ def role(*roles_or_types):
 
     return decorate
 
+client_config_defaults = {
+    'rbd_kernel_mount' : True,
+    'rbd_create'       : True,
+    'rbd_fs'           : None,
+    'rbd_size'         : 4096,
+    }
 
 class CephTest(test.test):
     def setup(self, **kwargs):
@@ -71,6 +77,8 @@ class CephTest(test.test):
         self.my_roles = self.all_roles[self.number]
         kwargs.setdefault('client_types', {})
         self.client_types = kwargs.pop('client_types')
+        kwargs.setdefault('client_configs', {})
+        self.client_configs = kwargs.pop('client_configs')
         self.extra = kwargs
 
         self.ceph_bindir = os.path.join(self.bindir, 'usr/local/bin')
@@ -406,6 +414,10 @@ class CephTest(test.test):
         role = 'client.{id}'.format(id=id_)
         return type_ == self.client_types.get(role, 'kclient')
 
+    def get_client_config(self, id_, key):
+        role = 'client.{id}'.format(id=id_)
+        return self.client_configs.get(role,{}).get(key, client_config_defaults[key])
+
     @role('client')
     def do_071_cfuse_mount(self):
         self.fuses = []
@@ -456,7 +468,7 @@ class CephTest(test.test):
 
     @role('mon.0')
     def do_073_rbd_activate(self):
-        if 'rbd' not in self.client_types.values():
+        if not 'rbd' in self.client_types.values():
             return
 
         rbd_file = os.path.join(self.ceph_libdir, 'rados-classes/libcls_rbd.so')
@@ -480,11 +492,9 @@ class CephTest(test.test):
     @role('mon.0')
     def do_074_create_rbd(self):
         for roles in self.all_roles:
-            for role in roles:
-                if not role.startswith('client.'):
-                    continue
-                id_ = int(role[len('client.'):])
-                if not self.client_is_type(id_, 'rbd'):
+            for id_ in roles_of_type(roles, 'client'):
+                if not (self.client_is_type(id_, 'rbd') and
+                        self.get_client_config(id_, 'rbd_create')):
                     continue
 
                 LD_LIB = os.getenv('LD_LIBRARY_PATH', '')
@@ -492,12 +502,12 @@ class CephTest(test.test):
                     os.putenv('LD_LIBRARY_PATH', LD_LIB + ':' + self.ceph_libdir)
                 utils.run('{bindir}/rbd create -s {size} {name}'.format(
                         bindir=self.ceph_bindir,
-                        size=4096,
+                        size=self.get_client_config(id_, 'rbd_size'),
                         name='testimage{id}'.format(id=id_),
                         ))
 
     def do_075_barrier_rbd_created(self):
-        if 'rbd' not in self.client_types.values():
+        if not 'rbd' in self.client_types.values():
             return
         # rbd images have been created
         barrier_ids = ['{ip}#cluster'.format(ip=ip) for ip in self.all_ips]
@@ -509,7 +519,8 @@ class CephTest(test.test):
     @role('client')
     def do_076_rbd_modprobe(self):
         for id_ in roles_of_type(self.my_roles, 'client'):
-            if self.client_is_type(id_, 'rbd'):
+            if self.client_is_type(id_, 'rbd') and \
+                    self.get_client_config(id_, 'rbd_kernel_mount'):
                 utils.run('modprobe rbd')
                 return
 
@@ -517,7 +528,8 @@ class CephTest(test.test):
     def do_077_rbd_dev_create(self):
         self.rbd_dev_ids = {}
         for id_ in roles_of_type(self.my_roles, 'client'):
-            if not self.client_is_type(id_, 'rbd'):
+            if not (self.client_is_type(id_, 'rbd') and
+                    self.get_client_config(id_, 'rbd_kernel_mount')):
                 continue
 
             image_name = 'testimage{id}'.format(id=id_)
@@ -557,20 +569,26 @@ class CephTest(test.test):
     @role('client')
     def do_078_rbd_preparefs(self):
         for id_ in roles_of_type(self.my_roles, 'client'):
-            if not self.client_is_type(id_, 'rbd'):
+            if not (self.client_is_type(id_, 'rbd') and
+                    self.get_client_config(id_, 'rbd_fs') is not None):
                 continue
             image_name = 'testimage{id}'.format(id=id_)
-            utils.system('mke2fs -t ext3 /dev/rbd/{image}'.format(image=image_name))
+            utils.system('mkfs -t {fs} /dev/rbd/{image}'.format(
+                    fs=self.get_client_config(id_, 'rbd_fs'),
+                    image=image_name,
+                    ))
 
     @role('client')
     def do_079_rbd_mount(self):
         for id_ in roles_of_type(self.my_roles, 'client'):
-            if not self.client_is_type(id_, 'rbd'):
+            if not (self.client_is_type(id_, 'rbd') and
+                    self.get_client_config(id_, 'rbd_kernel_mount') and
+                    self.get_client_config(id_, 'rbd_fs') is not None):
                 continue
             image_name = 'testimage{id}'.format(id=id_)
             mnt = os.path.join(self.tmpdir, image_name)
             os.mkdir(mnt)
-            utils.system('mount -t ext3 /dev/rbd/{image} {mnt}'.format(image=image_name, mnt=mnt))
+            utils.system('mount -t {fs} /dev/rbd/{image} {mnt}'.format(image=image_name, mnt=mnt, fs=self.get_client_config(id_, 'rbd_fs')))
 
     @role('client')
     def do_901_cfuse_unmount(self):
@@ -590,7 +608,8 @@ class CephTest(test.test):
     def do_903_rbd_kernel_unmount(self):
         kernel_mounted = False
         for id_ in roles_of_type(self.my_roles, 'client'):
-            if not self.client_is_type(id_, 'rbd'):
+            if not (self.client_is_type(id_, 'rbd') and
+                    self.get_client_config(id_, 'rbd_kernel_mount')):
                 continue
             kernel_mounted = True
             image_name = 'testimage{id}'.format(id=id_)
