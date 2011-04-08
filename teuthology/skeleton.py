@@ -126,6 +126,15 @@ class CephTest(test.test):
         secret = secret.stdout.rstrip('\n')
         return secret
 
+    def generate_caps(self, role, id_):
+        defaults = {
+            'osd': '--cap mon "allow *" --cap osd "allow *"',
+            'mds': '--cap mon "allow *" --cap osd "allow *" --cap mds "allow"',
+            'client' : '--cap mon "allow rw" --cap osd "allow rwx pool=data,rbd" --cap mds "allow"'
+            }
+        return self.client_configs.get("{role}.{id_}".format(id_=id_,role=role),{}).get("caps",defaults.get(role, ""))
+            
+        
     def do_010_announce(self):
         print 'This is host #%d with roles %s...' % (self.number, self.my_roles)
 
@@ -306,11 +315,7 @@ class CephTest(test.test):
                 ))
 
         if 'mon.0' in self.my_roles:
-            for type_, caps in [
-                ('osd', '--cap mon "allow *" --cap osd "allow *"'),
-                ('mds', '--cap mon "allow *" --cap osd "allow *" --cap mds "allow"'),
-                ('client', '--cap mon "allow rw" --cap osd "allow rwx pool=data,rbd" --cap mds "allow"'),
-                ]:
+            for type_ in ['osd','mds','client']:
                 for idx, host_roles in enumerate(self.all_roles):
                     print 'Fetching {type} keys from host {idx} ({ip})...'.format(
                         type=type_,
@@ -330,7 +335,7 @@ class CephTest(test.test):
                                 bindir=self.ceph_bindir,
                                 type=type_,
                                 id=id_,
-                                caps=caps,
+                                caps=self.generate_caps(type_, id_),
                                 ))
                         utils.system('{bindir}/ceph -c {conf} -k ceph.keyring -i temp.keyring auth add {type}.{id}'.format(
                                 bindir=self.ceph_bindir,
