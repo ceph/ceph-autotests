@@ -3,7 +3,7 @@ import json
 from autotest_lib.server import autotest, hosts, subcommand
 from autotest_lib.server import utils
 
-TEST_URL = 'http://ceph.newdream.net:8116/tarball/pybind/ceph_pybind.tar.bz2'
+TEST_URL = 'http://ceph.newdream.net:8116/tarball/master/ceph_pybind.tar.bz2'
 
 ROLES = [ [ 'mon.0', 'mds.0', 'osd.0' ], [ 'client.0' ] ]
 
