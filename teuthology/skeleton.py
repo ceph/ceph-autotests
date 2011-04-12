@@ -1,4 +1,5 @@
 import functools
+import gzip
 import os
 import signal
 
@@ -482,3 +483,44 @@ class CephTest(test.test):
             # TODO daemons should catch sigterm and exit 0
             assert d.result.exit_status in [0, -signal.SIGTERM], \
                 'daemon %r failed with: %r' % (d.result.command, d.result.exit_status)
+
+    def gzip_ceph_logs(self):
+        for filename in os.listdir('results/log'):
+            if not filename.endswith('.log'):
+                continue
+            src = os.path.join('results/log', filename)
+            dst = os.path.join('results/log', '{f}.gz_'.format(f=filename))
+            tmp = '{dst}.tmp'.format(dst=dst)
+            with file(src, 'rb') as f:
+                # explicitly make the .gz world-readable, even when
+                # ceph log files were mode u=rw,go= so they are later
+                # browseable in the autotest web ui
+                with file(tmp, 'wb', 0644) as out:
+                    gz = gzip.GzipFile(
+                        filename=filename,
+                        mode='wb',
+                        compresslevel=9,
+                        fileobj=out,
+                        )
+                    while True:
+                        data = f.read(8192)
+                        if not data:
+                            break
+                        gz.write(data)
+                    gz.close()
+            os.rename(tmp, dst)
+            os.unlink(src)
+
+    def cleanup(self):
+        """
+        Postprocess the test run.
+
+        If a subclass wants to override cleanup, to
+        e.g. provide keyval results, make sure to call::
+
+            super(MyClass, self).cleanup()
+
+        before your own logic.
+        """
+        super(CephTest, self).cleanup()
+        self.gzip_ceph_logs()
