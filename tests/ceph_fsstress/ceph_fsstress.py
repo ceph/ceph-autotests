@@ -16,7 +16,7 @@ class ceph_fsstress(skeleton.CephTest):
 
             self.job.run_test(
                 'fsstress',
-                dir=mnt,
+                testdir=mnt,
                 )
 
             print 'ceph fsstress test ok'
