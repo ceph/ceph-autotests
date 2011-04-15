@@ -67,10 +67,18 @@ client_config_defaults = {
     }
 
 class CephTest(test.test):
-    def setup(self, **kwargs):
-        ceph.get_binaries(self, kwargs.get('ceph_bin_url'))
+    def run_hooks(self, prefix):
+        hooks = sorted(name for name in dir(self) if name.startswith('{prefix}_'.format(prefix=prefix)))
+        for name in hooks:
+            print 'Running %s' % name
+            fn = getattr(self, name)
+            fn()
 
-    def run_once(self, **kwargs):
+    def initialize(self, **kwargs):
+        print 'Entering tmp directory:', self.tmpdir
+        os.chdir(self.tmpdir)
+
+        self.ceph_bin_url = kwargs.pop('ceph_bin_url', None)
         self.number = kwargs.pop('number')
         self.all_roles = kwargs.pop('all_roles')
         self.all_ips = kwargs.pop('all_ips')
@@ -87,17 +95,16 @@ class CephTest(test.test):
         self.ceph_libdir = os.path.join(self.bindir, 'usr/local/lib')
         self.daemons = []
 
+        self.run_hooks(prefix='init')
+
+    def run_once(self):
         print 'Entering tmp directory:', self.tmpdir
         os.chdir(self.tmpdir)
 
-        self.run_hooks()
+        self.run_hooks(prefix='do')
 
-    def run_hooks(self):
-        hooks = sorted(name for name in dir(self) if name.startswith('do_'))
-        for name in hooks:
-            print 'Running %s' % name
-            fn = getattr(self, name)
-            fn()
+    def postprocess(self):
+        self.run_hooks(prefix='hook_postprocess')
 
     def get_mons(self):
         mons = {}
@@ -135,73 +142,76 @@ class CephTest(test.test):
         return self.client_configs.get("{role}.{id_}".format(id_=id_,role=role),{}).get("caps",defaults.get(role, ""))
             
         
-    def do_010_announce(self):
+    def init_010_announce(self):
         print 'This is host #%d with roles %s...' % (self.number, self.my_roles)
 
-    def do_015_symlink_results(self):
+    def init_012_get_binaries(self):
+        ceph.get_binaries(self, self.ceph_bin_url)
+
+    def init_015_symlink_results(self):
         # let ceph.conf use fixed pathnames
         os.symlink(self.resultsdir, 'results')
         os.mkdir('log')
         os.mkdir('results/profiling-logger')
 
-    def do_015_dev(self):
+    def init_015_dev(self):
         os.mkdir('dev')
 
     @role('osd')
-    def do_015_class_tmp(self):
+    def init_015_class_tmp(self):
         os.mkdir('class_tmp')
 
-    def do_020_conf_create(self):
+    def init_020_conf_create(self):
         self.ceph_conf = ceph.skeleton_config(self)
 
-    def do_021_conf_add_mons(self):
+    def init_021_conf_add_mons(self):
         mons = self.get_mons()
         for role, addr in mons.iteritems():
             self.ceph_conf.setdefault(role, {})
             self.ceph_conf[role]['mon addr'] = addr
 
     @role('client')
-    def do_025_conf_client_keyring(self):
+    def init_025_conf_client_keyring(self):
         for id_ in roles_of_type(self.my_roles, 'client'):
             section = 'client.{id}'.format(id=id_)
             self.ceph_conf.setdefault(section, {})
             self.ceph_conf[section]['keyring'] = 'client.{id}.keyring'.format(id=id_)
 
-    def do_029_conf_write(self):
+    def init_029_conf_write(self):
         self.ceph_conf.write()
         print 'Wrote config to', self.ceph_conf.filename
 
     @role('mon.0')
-    def do_030_create_keyring(self):
+    def init_030_create_keyring(self):
         utils.system('{bindir}/cauthtool --create-keyring ceph.keyring'.format(
                 bindir=self.ceph_bindir,
                 ))
 
     @role('mon.0')
-    def do_031_generate_mon0_key(self):
+    def init_031_generate_mon0_key(self):
         utils.system('{bindir}/cauthtool --gen-key --name=mon. ceph.keyring'.format(
                 bindir=self.ceph_bindir,
                 ))
 
     @role('mon.0')
-    def do_031_generate_admin_key(self):
+    def init_031_generate_admin_key(self):
         utils.system('{bindir}/cauthtool --gen-key --name=client.admin --set-uid=0 --cap mon "allow *" --cap osd "allow *" --cap mds "allow" ceph.keyring'.format(
                 bindir=self.ceph_bindir,
                 ))
 
     @role('mon.0')
-    def do_033_generate_monmap(self):
+    def init_033_generate_monmap(self):
         ceph.create_simple_monmap(self)
 
     @role('mon.0')
-    def do_035_export_mon0_info(self):
+    def init_035_export_mon0_info(self):
         # export mon. key
         self.mon0_serve = utils.BgJob(command='env PYTHONPATH={at_bindir} python -m teuthology.ceph_serve_file --port=11601 --publish=/mon0key:ceph.keyring --publish=/monmap:monmap'.format(
                 at_bindir=self.bindir,
                 ))
 
     @role('mon')
-    def do_036_import_mon0_info(self):
+    def init_036_import_mon0_info(self):
         idx_of_mon0 = server_with_role(self.all_roles, 'mon.0')
         for id_ in roles_of_type(self.my_roles, 'mon'):
             if id_ == '0':
@@ -222,7 +232,7 @@ class CephTest(test.test):
             # no need to do more than once per host
             break
 
-    def do_038_barrier_mon0_info(self):
+    def init_038_barrier_mon0_info(self):
         # mon.0 is now exporting its data, wait until mon.N has copied it
         barrier_ids = ['{ip}#cluster'.format(ip=ip) for ip in self.all_ips]
         self.job.barrier(
@@ -231,7 +241,7 @@ class CephTest(test.test):
             ).rendezvous(*barrier_ids)
 
     @role('mon.0')
-    def do_039_export_mon0_info_stop(self):
+    def init_039_export_mon0_info_stop(self):
         mon0_serve = self.mon0_serve
         del self.mon0_serve
         mon0_serve.sp.terminate()
@@ -240,7 +250,7 @@ class CephTest(test.test):
             'mon.0 key serving failed with: %r' % mon0_serve.result.exit_status
 
     @role('mon')
-    def do_041_daemons_mon_osdmap(self):
+    def init_041_daemons_mon_osdmap(self):
         utils.system('{bindir}/osdmaptool --clobber --createsimple {num_osd} osdmap --pg_bits 2 --pgp_bits 4'.format(
                 num_osd=num_instances_of_type(self.all_roles, 'osd'),
                 bindir=self.ceph_bindir,
@@ -248,7 +258,7 @@ class CephTest(test.test):
                 ))
 
     @role('mon')
-    def do_042_daemons_mon_mkfs(self):
+    def init_042_daemons_mon_mkfs(self):
         for id_ in roles_of_type(self.my_roles, 'mon'):
             utils.system('{bindir}/cmon --mkfs -i {id} -c {conf} --monmap=monmap --osdmap=osdmap --keyring=ceph.keyring'.format(
                     bindir=self.ceph_bindir,
@@ -257,7 +267,7 @@ class CephTest(test.test):
                     ))
 
     @role('mon')
-    def do_045_daemons_mon_start(self):
+    def init_045_daemons_mon_start(self):
         for id_ in roles_of_type(self.my_roles, 'mon'):
             proc = utils.BgJob(command='{bindir}/cmon -f -i {id} -c {conf}'.format(
                     bindir=self.ceph_bindir,
@@ -267,15 +277,15 @@ class CephTest(test.test):
             self.daemons.append(proc)
 
     @role('mon')
-    def do_049_daemons_mon_monmap_delete(self):
+    def init_049_daemons_mon_monmap_delete(self):
         os.unlink('monmap')
 
     @role('mon')
-    def do_049_daemons_mon_osdmap_delete(self):
+    def init_049_daemons_mon_osdmap_delete(self):
         os.unlink('osdmap')
 
     @role('osd')
-    def do_050_generate_key_osd(self):
+    def init_050_generate_key_osd(self):
         for id_ in roles_of_type(self.my_roles, 'osd'):
             utils.system('{bindir}/cauthtool --create-keyring --gen-key --name=osd.{id} dev/osd.{id}.keyring'.format(
                     bindir=self.ceph_bindir,
@@ -283,7 +293,7 @@ class CephTest(test.test):
                     ))
 
     @role('mds')
-    def do_050_generate_key_mds(self):
+    def init_050_generate_key_mds(self):
         for id_ in roles_of_type(self.my_roles, 'mds'):
             utils.system('{bindir}/cauthtool --create-keyring --gen-key --name=mds.{id} dev/mds.{id}.keyring'.format(
                     bindir=self.ceph_bindir,
@@ -291,7 +301,7 @@ class CephTest(test.test):
                     ))
 
     @role('client')
-    def do_050_generate_key_client(self):
+    def init_050_generate_key_client(self):
         for id_ in roles_of_type(self.my_roles, 'client'):
             # TODO this --name= is not really obeyed, all unknown "types" are munged to "client"
             utils.system('{bindir}/cauthtool --create-keyring --gen-key --name=client.{id} client.{id}.keyring'.format(
@@ -300,7 +310,7 @@ class CephTest(test.test):
                     ))
 
 
-    def do_055_key_shuffle(self):
+    def init_055_key_shuffle(self):
         # copy keys to mon.0
         publish = []
         for id_ in roles_of_type(self.my_roles, 'osd'):
@@ -356,7 +366,7 @@ class CephTest(test.test):
             'general key serving failed with: %r' % key_serve.result.exit_status
 
     @role('mon.0')
-    def do_056_set_max_mds(self):
+    def init_056_set_max_mds(self):
         # TODO where does this belong?
         utils.system('{bindir}/ceph -c {conf} -k ceph.keyring mds set_max_mds {num_mds}'.format(
                 bindir=self.ceph_bindir,
@@ -365,7 +375,7 @@ class CephTest(test.test):
                 ))
 
     @role('osd')
-    def do_061_osd_mkfs(self):
+    def init_061_osd_mkfs(self):
         for id_ in roles_of_type(self.my_roles, 'osd'):
             os.mkdir(os.path.join('dev', 'osd.{id}.data'.format(id=id_)))
             utils.system('{bindir}/cosd --mkfs -i {id} -c {conf}'.format(
@@ -375,7 +385,7 @@ class CephTest(test.test):
                     ))
 
     @role('osd')
-    def do_062_osd_start(self):
+    def init_062_osd_start(self):
         for id_ in roles_of_type(self.my_roles, 'osd'):
             proc = utils.BgJob(command='{bindir}/cosd -f -i {id} -c {conf}'.format(
                     bindir=self.ceph_bindir,
@@ -385,7 +395,7 @@ class CephTest(test.test):
             self.daemons.append(proc)
 
     @role('mds')
-    def do_063_mds_start(self):
+    def init_063_mds_start(self):
         for id_ in roles_of_type(self.my_roles, 'mds'):
             proc = utils.BgJob(command='{bindir}/cmds -f -i {id} -c {conf}'.format(
                     bindir=self.ceph_bindir,
@@ -395,7 +405,7 @@ class CephTest(test.test):
             self.daemons.append(proc)
 
     @role('mon.0')
-    def do_065_wait_healthy(self):
+    def init_065_wait_healthy(self):
         # others wait on barrier
         ceph.wait_until_healthy(self)
 
@@ -404,7 +414,7 @@ class CephTest(test.test):
                 conf=self.ceph_conf.filename,
                 ))
 
-    def do_069_barrier_healthy(self):
+    def init_069_barrier_healthy(self):
         # server is now healthy
         barrier_ids = ['{ip}#cluster'.format(ip=ip) for ip in self.all_ips]
         self.job.barrier(
@@ -424,7 +434,7 @@ class CephTest(test.test):
         return self.client_configs.get(role,{}).get(key, client_config_defaults[key])
 
     @role('client')
-    def do_071_cfuse_mount(self):
+    def init_071_cfuse_mount(self):
         self.fuses = []
         for id_ in roles_of_type(self.my_roles, 'client'):
             if not self.client_is_type(id_, 'cfuse'):
@@ -448,7 +458,7 @@ class CephTest(test.test):
             ceph.wait_until_fuse_mounted(self, fuse=fuse, mountpoint=mnt)
 
     @role('client')
-    def do_072_kernel_mount(self):
+    def init_072_kernel_mount(self):
         self.mounts = []
         for id_ in roles_of_type(self.my_roles, 'client'):
             if not self.client_is_type(id_, 'kclient'):
@@ -472,7 +482,7 @@ class CephTest(test.test):
             self.mounts.append(mnt)
 
     @role('mon.0')
-    def do_073_rbd_activate(self):
+    def init_073_rbd_activate(self):
         if not 'rbd' in self.client_types.values():
             return
 
@@ -495,7 +505,7 @@ class CephTest(test.test):
                 ))
 
     @role('mon.0')
-    def do_074_create_rbd(self):
+    def init_074_create_rbd(self):
         for roles in self.all_roles:
             for id_ in roles_of_type(roles, 'client'):
                 if not (self.client_is_type(id_, 'rbd') and
@@ -511,7 +521,7 @@ class CephTest(test.test):
                         name='testimage{id}'.format(id=id_),
                         ))
 
-    def do_075_barrier_rbd_created(self):
+    def init_075_barrier_rbd_created(self):
         if not 'rbd' in self.client_types.values():
             return
         # rbd images have been created
@@ -522,7 +532,7 @@ class CephTest(test.test):
             ).rendezvous(*barrier_ids)
 
     @role('client')
-    def do_076_rbd_modprobe(self):
+    def init_076_rbd_modprobe(self):
         for id_ in roles_of_type(self.my_roles, 'client'):
             if self.client_is_type(id_, 'rbd') and \
                     self.get_client_config(id_, 'rbd_kernel_mount'):
@@ -530,7 +540,7 @@ class CephTest(test.test):
                 return
 
     @role('client')
-    def do_077_rbd_dev_create(self):
+    def init_077_rbd_dev_create(self):
         self.rbd_dev_ids = {}
         for id_ in roles_of_type(self.my_roles, 'client'):
             if not (self.client_is_type(id_, 'rbd') and
@@ -572,7 +582,7 @@ class CephTest(test.test):
                     self.rbd_dev_ids[image_name] = dev_id
 
     @role('client')
-    def do_078_rbd_preparefs(self):
+    def init_078_rbd_preparefs(self):
         for id_ in roles_of_type(self.my_roles, 'client'):
             if not (self.client_is_type(id_, 'rbd') and
                     self.get_client_config(id_, 'rbd_fs') is not None):
@@ -584,7 +594,7 @@ class CephTest(test.test):
                     ))
 
     @role('client')
-    def do_079_rbd_mount(self):
+    def init_079_rbd_mount(self):
         for id_ in roles_of_type(self.my_roles, 'client'):
             if not (self.client_is_type(id_, 'rbd') and
                     self.get_client_config(id_, 'rbd_kernel_mount') and
@@ -596,7 +606,7 @@ class CephTest(test.test):
             utils.system('mount -t {fs} /dev/rbd/{image} {mnt}'.format(image=image_name, mnt=mnt, fs=self.get_client_config(id_, 'rbd_fs')))
 
     @role('client')
-    def do_901_cfuse_unmount(self):
+    def hook_postprocess_901_cfuse_unmount(self):
         for mnt, fuse in self.fuses:
             utils.system('fusermount -u {mnt}'.format(mnt=mnt))
             print 'Waiting for cfuse to exit...'
@@ -605,12 +615,12 @@ class CephTest(test.test):
                 'cfuse failed with: %r' % fuse.result.exit_status
 
     @role('client')
-    def do_902_kernel_unmount(self):
+    def hook_postprocess_902_kernel_unmount(self):
         for mnt in self.mounts:
             utils.system('umount {mnt}'.format(mnt=mnt))
 
     @role('client')
-    def do_903_rbd_kernel_unmount(self):
+    def hook_postprocess_903_rbd_kernel_unmount(self):
         kernel_mounted = False
         for id_ in roles_of_type(self.my_roles, 'client'):
             if not (self.client_is_type(id_, 'rbd') and
@@ -627,12 +637,12 @@ class CephTest(test.test):
             os.rmdir('/dev/rbd')
 
     @role('client')
-    def do_904_rbd_dev_remove(self):
+    def hook_postprocess_904_rbd_dev_remove(self):
         for dev_id in self.rbd_dev_ids.itervalues():
             with open('/sys/bus/rbd/remove', 'w') as rem_file:
                 rem_file.write(dev_id)
 
-    def do_910_barrier_done(self):
+    def hook_postprocess_910_barrier_done(self):
         # wait until client is done
         barrier_ids = ['{ip}#cluster'.format(ip=ip) for ip in self.all_ips]
         self.job.barrier(
@@ -640,7 +650,7 @@ class CephTest(test.test):
             tag='done',
             ).rendezvous(*barrier_ids)
 
-    def do_950_daemon_shutdown(self):
+    def hook_postprocess_950_daemon_shutdown(self):
         for d in self.daemons:
             d.sp.terminate()
         utils.join_bg_jobs(self.daemons)
