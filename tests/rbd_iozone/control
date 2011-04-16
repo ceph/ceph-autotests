@@ -3,26 +3,13 @@ import json
 from autotest_lib.server import autotest, hosts, subcommand
 from autotest_lib.server import utils
 
-TEST_URL = 'http://ceph.newdream.net:8116/tarball/master/rbd_iozone.tar.bz2'
+TEST_URL = 'http://ceph.newdream.net:8116/tarball/wip_secret/rbd_iozone.tar.bz2'
 
 ROLES = [
     [
         'mon.0',
         'mds.0',
-        ],
-    [
-        'mon.1',
-        'mds.1',
-        ],
-    [
-        'mon.2',
-        'mds.2',
-        ],
-    [
         'osd.0',
-        ],
-    [
-        'osd.1',
         ],
     [
         'client.0',
@@ -62,6 +49,7 @@ def run((tag_name, cluster)):
                         client_configs=CLIENT_CONFIGS,
                         tag=tag_name,
                         rbd_iozone_args=IOZONE_ARGS,
+                        ceph_bin_url='http://ceph.newdream.net/gitbuilder/tarball/ref/origin_wip_secret.tgz'
                     )))
 
             command = subcommand.subcommand(

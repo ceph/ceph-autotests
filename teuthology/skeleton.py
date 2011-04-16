@@ -527,6 +527,8 @@ class CephTest(test.test):
     @role('client')
     def do_077_rbd_dev_create(self):
         self.rbd_dev_ids = {}
+        import time
+        time.sleep(100000000)
         for id_ in roles_of_type(self.my_roles, 'client'):
             if not (self.client_is_type(id_, 'rbd') and
                     self.get_client_config(id_, 'rbd_kernel_mount')):
