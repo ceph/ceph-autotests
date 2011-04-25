@@ -12,8 +12,8 @@ log = logging.getLogger(__name__)
 
 def get_binaries(test, url=None):
     """Fetch and unpack Ceph binary tarball."""
-    # TODO autodetect architecture
-    CEPH_TARBALL_DEFAULT_URL = 'http://ceph.newdream.net/gitbuilder/tarball/ref/origin_master.tgz'
+    machine = os.uname()[4]
+    CEPH_TARBALL_DEFAULT_URL = 'http://ceph.newdream.net/gitbuilder/tarball/ref/origin_master/ceph.{machine}.tgz'.format(machine=machine)
     if url is None:
         url = CEPH_TARBALL_DEFAULT_URL
     tarball = os.path.join(test.tmpdir, 'ceph-bin.tgz')
