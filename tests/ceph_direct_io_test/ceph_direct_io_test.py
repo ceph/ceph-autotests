@@ -17,6 +17,7 @@ class ceph_direct_io_test(skeleton.CephTest):
             self.job.run_test(
                 'direct_io_test',
                 dir=mnt,
+                tag=self.generate_tag_for_subjob(client_id=id_),
                 )
 
             print 'ceph direct_io_test test ok'

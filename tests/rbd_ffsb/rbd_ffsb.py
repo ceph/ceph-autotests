@@ -17,6 +17,7 @@ class rbd_ffsb(skeleton.CephTest):
                 'ffsb',
                 dir=mnt,
                 profiles=self.extra.get('rbd_ffsb_profiles'),
+                tag=self.generate_tag_for_subjob(client_id=id_),
                 )
 
             print 'rbd ffsb test ok'

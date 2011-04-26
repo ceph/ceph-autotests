@@ -17,6 +17,7 @@ class ceph_iozone(skeleton.CephTest):
             self.job.run_test(
                 'iozone',
                 dir=mnt,
+                tag=self.generate_tag_for_subjob(client_id=id_),
                 )
 
             print 'ceph iozone test ok'

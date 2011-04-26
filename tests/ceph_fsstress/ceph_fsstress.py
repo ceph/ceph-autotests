@@ -17,6 +17,7 @@ class ceph_fsstress(skeleton.CephTest):
             self.job.run_test(
                 'fsstress',
                 testdir=mnt,
+                tag=self.generate_tag_for_subjob(client_id=id_),
                 )
 
             print 'ceph fsstress test ok'

@@ -17,6 +17,7 @@ class rbd_tiobench(skeleton.CephTest):
                 'tiobench',
                 dir=mnt,
                 args=self.extra.get('rbd_tiobench_args'),
+                tag=self.generate_tag_for_subjob(client_id=id_),
                 )
 
             print 'rbd tiobench test ok'

@@ -17,6 +17,7 @@ class rbd_dbench(skeleton.CephTest):
                 'dbench',
                 dir=mnt,
                 args=self.extra.get('rbd_dbench_args', ''),
+                tag=self.generate_tag_for_subjob(client_id=id_),
                 )
 
             print 'rbd dbench test ok'

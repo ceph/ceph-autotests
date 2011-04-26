@@ -17,6 +17,7 @@ class ceph_blogbench(skeleton.CephTest):
             self.job.run_test(
                 'blogbench',
                 dir=mnt,
+                tag=self.generate_tag_for_subjob(client_id=id_),
                 )
 
             print 'ceph blogbench test ok'

@@ -17,6 +17,7 @@ class rbd_iozone(skeleton.CephTest):
                 'iozone',
                 dir=mnt,
                 args=self.extra.get('rbd_iozone_args'),
+                tag=self.generate_tag_for_subjob(client_id=id_),
                 )
 
             print 'rbd iozone test ok'

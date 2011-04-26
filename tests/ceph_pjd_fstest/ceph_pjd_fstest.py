@@ -17,6 +17,7 @@ class ceph_pjd_fstest(skeleton.CephTest):
             self.job.run_test(
                 'pjd_fstest',
                 dir=mnt,
+                tag=self.generate_tag_for_subjob(client_id=id_),
                 )
 
             print 'ceph pjd_fstest test ok'

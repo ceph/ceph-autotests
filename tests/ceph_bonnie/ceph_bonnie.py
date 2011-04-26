@@ -17,6 +17,7 @@ class ceph_bonnie(skeleton.CephTest):
             self.job.run_test(
                 'bonnie',
                 dir=mnt,
+                tag=self.generate_tag_for_subjob(client_id=id_),
                 )
 
             print 'ceph bonnie test ok'

@@ -17,6 +17,7 @@ class rbd_fsstress(skeleton.CephTest):
                 'fsstress',
                 testdir=mnt,
                 extra_args=self.extra.get('rbd_fsstress_args', ''),
+                tag=self.generate_tag_for_subjob(client_id=id_),
                 )
 
             print 'rbd fsstress test ok'

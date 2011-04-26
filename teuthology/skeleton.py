@@ -140,8 +140,25 @@ class CephTest(test.test):
             'client' : '--cap mon "allow rw" --cap osd "allow rwx pool=data,rbd" --cap mds "allow"'
             }
         return self.client_configs.get("{role}.{id_}".format(id_=id_,role=role),{}).get("caps",defaults.get(role, ""))
-            
-        
+
+    def generate_tag_for_subjob(self, client_id):
+        """
+        Generate a unique tag suitable for running a subjob via
+        self.job.run_test.
+
+        Guaranteed to be unique across all concurrent host groups, for
+        all current clients, and for every iteration.
+        """
+        assert '.' in self.tagged_testname, \
+            "Test name must have tag: %r" % self.tagged_testname
+        cluster = self.tagged_testname.split('.', 1)[1]
+        tag = '{cluster}.client{client}.iter{iter}'.format(
+            cluster=cluster,
+            client=client_id,
+            iter=self.iteration,
+            )
+        return tag
+
     def init_010_announce(self):
         print 'This is host #%d with roles %s...' % (self.number, self.my_roles)
 

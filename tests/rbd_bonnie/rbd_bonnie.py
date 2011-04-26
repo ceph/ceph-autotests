@@ -17,6 +17,7 @@ class rbd_bonnie(skeleton.CephTest):
                 'bonnie',
                 dir=mnt,
                 extra_args=self.extra.get('rbd_bonnie_args', ''),
+                tag=self.generate_tag_for_subjob(client_id=id_),
                 )
 
             print 'rbd bonnie test ok'

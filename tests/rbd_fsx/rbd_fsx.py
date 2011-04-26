@@ -16,6 +16,7 @@ class rbd_fsx(skeleton.CephTest):
             self.job.run_test(
                 'fsx',
                 dir=mnt,
+                tag=self.generate_tag_for_subjob(client_id=id_),
                 )
 
             print 'rbd fsx test ok'

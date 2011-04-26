@@ -17,6 +17,7 @@ class ceph_tiobench(skeleton.CephTest):
             self.job.run_test(
                 'tiobench',
                 dir=mnt,
+                tag=self.generate_tag_for_subjob(client_id=id_),
                 )
 
             print 'ceph tiobench test ok'
