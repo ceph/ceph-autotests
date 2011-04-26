@@ -12,10 +12,13 @@ class rbd_ffsb(skeleton.CephTest):
     def do_150_rbd_ffsb(self):
         for id_ in skeleton.roles_of_type(self.my_roles, 'client'):
             mnt = os.path.join(self.tmpdir, 'testimage{id}'.format(id=id_))
+            # a unique directory for each client
+            client_dir = os.path.join(mnt, 'client.{id}'.format(id=id_))
+            os.mkdir(client_dir)
 
             self.job.run_test(
                 'ffsb',
-                dir=mnt,
+                dir=client_dir,
                 profiles=self.extra.get('rbd_ffsb_profiles'),
                 tag=self.generate_tag_for_subjob(client_id=id_),
                 )
