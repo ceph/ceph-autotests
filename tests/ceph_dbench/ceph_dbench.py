@@ -24,3 +24,10 @@ class ceph_dbench(skeleton.CephTest):
                 )
 
             print 'ceph dbench test ok'
+
+    def postprocess_iteration(self):
+        for id_ in skeleton.roles_of_type(self.my_roles, 'client'):
+            self.copy_subjob_results_kv(
+                client_id=id_,
+                subjob_name='dbench',
+                )

@@ -159,6 +159,67 @@ class CephTest(test.test):
             )
         return tag
 
+    def copy_subjob_results_kv(self, client_id, subjob_name):
+        # i can't find a really nice way to construct this path
+        results_path = os.path.join(
+            self.outputdir,
+            '..',
+            '{name}.{tag}'.format(
+                name=subjob_name,
+                tag=self.generate_tag_for_subjob(client_id),
+                ),
+            'results',
+            'keyval',
+            )
+        # TODO bleh read_keyval doesn't understand {perf}, and the tko
+        # parsing is not going to be available on the client
+        # kv = utils.read_keyval(results_dir)
+        def read_keyval_iterations(path):
+            def _read_iteration(f):
+                for line in f:
+                    assert line.endswith('\n')
+                    line = line.rstrip('\n')
+
+                    # TODO we don't support comments
+                    assert '#' not in line
+
+                    if not line:
+                        # preserve iteration boundaries
+                        return
+
+                    k,v = line.split('=', 1)
+                    # TODO kludge
+                    assert k.endswith('{perf}')
+                    k = k[:-len('{perf}')]
+                    try:
+                        v = int(v)
+                    except ValueError:
+                        try:
+                            v = float(v)
+                        except ValueError:
+                            pass
+                    yield (k,v)
+
+
+            with file(path) as f:
+                kv = dict(_read_iteration(f))
+                yield kv
+
+        # this is safe because we run the underlying job one iteration
+        # at a time only, even if we ourselves have multiple
+        # iterations
+        g = read_keyval_iterations(path=results_path)
+        for kv in g:
+            role = 'client.{id}'.format(id=client_id)
+            client_type = self.client_types.get(role, 'kclient')
+            self.write_iteration_keyval(
+                attr_dict=dict(
+                    client_id=client_id,
+                    client_type=client_type,
+                    ),
+                perf_dict=kv,
+                )
+
     def init_010_announce(self):
         print 'This is host #%d with roles %s...' % (self.number, self.my_roles)
 
