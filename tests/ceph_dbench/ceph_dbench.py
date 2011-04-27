@@ -1,4 +1,5 @@
 import os
+import shutil
 
 from autotest_lib.client.bin import utils
 
@@ -22,6 +23,7 @@ class ceph_dbench(skeleton.CephTest):
                 dir=client_dir,
                 tag=self.generate_tag_for_subjob(client_id=id_),
                 )
+            shutil.rmtree(client_dir)
 
             print 'ceph dbench test ok'
 
