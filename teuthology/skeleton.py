@@ -162,6 +162,15 @@ class CephTest(test.test):
     def init_010_announce(self):
         print 'This is host #%d with roles %s...' % (self.number, self.my_roles)
 
+    def init_011_record(self):
+        self.write_test_keyval(dict(
+                num_host=len(self.all_roles),
+                num_mon=num_instances_of_type(self.all_roles, 'mon'),
+                num_mds=num_instances_of_type(self.all_roles, 'mds'),
+                num_osd=num_instances_of_type(self.all_roles, 'osd'),
+                num_client=num_instances_of_type(self.all_roles, 'client'),
+                ))
+
     def init_012_get_binaries(self):
         ceph.get_binaries(self, self.ceph_bin_url)
 
