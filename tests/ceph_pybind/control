@@ -1,4 +1,5 @@
 import json
+import random
 
 from autotest_lib.server import autotest, hosts, subcommand
 from autotest_lib.server import utils
@@ -13,12 +14,14 @@ def run((tag_name, cluster)):
     assert len(cluster) == len(ROLES)
     all_hosts = [hosts.create_host(host_name) for host_name in cluster]
     all_at = [autotest.Autotest(host) for host in all_hosts]
+    cookie = '%032x'%random.getrandbits(128)
     template = "import json; data=json.loads({data!r}); job.cache=False; job.run_test(**data)"
 
     def g():
         for i in range(len(ROLES)):
             control_file = template.format(data=json.dumps(dict(
                         url=TEST_URL,
+			cookie=cookie,
                         number=i,
                         all_roles=ROLES,
                         all_ips=[host.ip for host in all_hosts],

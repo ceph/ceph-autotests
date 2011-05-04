@@ -1,4 +1,6 @@
 import functools
+import gevent.server
+import gevent.event
 import os
 import signal
 import stat
@@ -6,7 +8,11 @@ import stat
 from autotest_lib.client.bin import test
 from autotest_lib.client.bin import utils
 
+from .rpc import server
+from .rpc import client
 from . import ceph
+
+RPC_PORT = 51991 # 0xCEFF ;)
 
 def roles_of_type(my_roles, type_):
     prefix = '{type}.'.format(type=type_)
@@ -86,6 +92,7 @@ class CephTest(test.test):
         self.client_types = kwargs.pop('client_types')
         kwargs.setdefault('client_configs', {})
         self.client_configs = kwargs.pop('client_configs')
+        self.cookie = kwargs.pop('cookie')
         self.extra = kwargs
 
         self.ceph_bindir = os.path.join(self.bindir, 'usr/local/bin')
@@ -94,7 +101,26 @@ class CephTest(test.test):
         self.ceph_libdir = os.path.join(self.bindir, 'usr/local/lib')
         self.daemons = []
 
+        # variables used to communicate between rpc methods and
+        # autotest functions; these need to be set before the rpc
+        # server is started, or we might get a call that tries to use
+        # them before we initialize them
+        self.mon0_info = gevent.event.AsyncResult()
+
+        handler = server.Handler(
+            cookie=self.cookie,
+            lookup=self.get_rpc_method,
+            )
+        self.server = gevent.server.StreamServer(
+            listener=('0.0.0.0', RPC_PORT),
+            handle=handler,
+            )
+        self.server.start()
+
         self.run_hooks(prefix='init')
+
+    def get_rpc_method(self, name):
+        return getattr(self, 'rpc_{name}'.format(name=name), None)
 
     def run_once(self):
         print 'Entering tmp directory:', self.tmpdir
@@ -104,6 +130,8 @@ class CephTest(test.test):
 
     def postprocess(self):
         self.run_hooks(prefix='hook_postprocess')
+
+        self.server.stop()
 
     def get_mons(self):
         mons = {}
@@ -247,6 +275,16 @@ class CephTest(test.test):
     def init_015_class_tmp(self):
         os.mkdir('class_tmp')
 
+    @role('mon.0')
+    def init_019_clients(self):
+        self.clients = [
+            client.Client(
+                address=(ip, RPC_PORT),
+                cookie=self.cookie,
+                )
+            for ip in self.all_ips
+            ]
+
     def init_020_conf_create(self):
         self.ceph_conf = ceph.skeleton_config(self)
 
@@ -289,51 +327,45 @@ class CephTest(test.test):
     def init_033_generate_monmap(self):
         ceph.create_simple_monmap(self)
 
+    def rpc_receive_mon0_info(self, key, monmap):
+        with file('ceph.keyring', 'w') as f:
+            f.write(key)
+        # decode monmap because json can't transport binary
+        monmap = monmap.decode('base64')
+        with file('monmap', 'w') as f:
+            f.write(monmap)
+        self.mon0_info.set(None)
+
     @role('mon.0')
-    def init_035_export_mon0_info(self):
-        # export mon. key
-        self.mon0_serve = utils.BgJob(command='env PYTHONPATH={at_bindir} python -m teuthology.ceph_serve_file --port=11601 --publish=/mon0key:ceph.keyring --publish=/monmap:monmap'.format(
-                at_bindir=self.bindir,
-                ))
+    def init_035_ship_mon0_info(self):
+        key = file('ceph.keyring').read()
+        # encode monmap so it can be transported in json
+        monmap = file('monmap').read().encode('base64')
+
+        for idx, roles in enumerate(self.all_roles):
+            for id_ in roles_of_type(roles, 'mon'):
+                if id_ == '0':
+                    continue
+
+                # copy mon key and initial monmap
+                print 'Sending mon0 info to node {idx}'.format(idx=idx)
+                g = self.clients[idx].call(
+                    'receive_mon0_info',
+                    key=key,
+                    monmap=monmap,
+                    )
+                # TODO run in parallel
+                g.get()
+
+                # no need to do more than once per host
+                break
+
+        self.mon0_info.set()
 
     @role('mon')
-    def init_036_import_mon0_info(self):
-        idx_of_mon0 = server_with_role(self.all_roles, 'mon.0')
-        for id_ in roles_of_type(self.my_roles, 'mon'):
-            if id_ == '0':
-                continue
-
-            # copy mon key
-            ceph.urlretrieve_retry(
-                url='http://{ip}:11601/mon0key'.format(ip=self.all_ips[idx_of_mon0]),
-                filename='ceph.keyring',
-                )
-
-            # copy initial monmap
-            ceph.urlretrieve_retry(
-                url='http://{ip}:11601/monmap'.format(ip=self.all_ips[idx_of_mon0]),
-                filename='monmap',
-                )
-
-            # no need to do more than once per host
-            break
-
-    def init_038_barrier_mon0_info(self):
-        # mon.0 is now exporting its data, wait until mon.N has copied it
-        barrier_ids = ['{ip}#cluster'.format(ip=ip) for ip in self.all_ips]
-        self.job.barrier(
-            hostid=barrier_ids[self.number],
-            tag='mon0_copied',
-            ).rendezvous(*barrier_ids)
-
-    @role('mon.0')
-    def init_039_export_mon0_info_stop(self):
-        mon0_serve = self.mon0_serve
-        del self.mon0_serve
-        mon0_serve.sp.terminate()
-        utils.join_bg_jobs([mon0_serve])
-        assert mon0_serve.result.exit_status in [0, -signal.SIGTERM], \
-            'mon.0 key serving failed with: %r' % mon0_serve.result.exit_status
+    def init_036_wait_mon0_info(self):
+        # wait until the rpc has been called
+        self.mon0_info.get()
 
     @role('mon')
     def init_041_daemons_mon_osdmap(self):
