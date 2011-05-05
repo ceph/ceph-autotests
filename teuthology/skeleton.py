@@ -238,7 +238,7 @@ class CephTest(test.test):
     def init_015_symlink_results(self):
         # let ceph.conf use fixed pathnames
         os.symlink(self.resultsdir, 'results')
-        os.mkdir('log')
+        os.mkdir('results/log')
         os.mkdir('results/profiling-logger')
 
     def init_015_dev(self):
@@ -747,14 +747,10 @@ class CephTest(test.test):
                 'daemon %r failed with: %r' % (d.result.command, d.result.exit_status)
 
     def gzip_ceph_logs(self):
-        # gzip logs and move them from log/ to results/log/
-        os.mkdir('results/log')
-        for filename in os.listdir('log'):
+        for filename in os.listdir('results/log'):
             if not filename.endswith('.log'):
-                print 'Unexpected file in log: %r' % filename
-                os.rename(os.path.join('log', filename), os.path.join('results/log', filename))
                 continue
-            src = os.path.join('log', filename)
+            src = os.path.join('results/log', filename)
             dst = os.path.join('results/log', '{f}.gz_'.format(f=filename))
             tmp = '{dst}.tmp'.format(dst=dst)
             with file(src, 'rb') as f:
