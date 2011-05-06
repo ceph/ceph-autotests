@@ -106,6 +106,7 @@ class CephTest(test.test):
         # server is started, or we might get a call that tries to use
         # them before we initialize them
         self.mon0_info = gevent.event.AsyncResult()
+        self.wait_healthy = gevent.event.AsyncResult()
 
         handler = server.Handler(
             cookie=self.cookie,
@@ -524,21 +525,22 @@ class CephTest(test.test):
 
     @role('mon.0')
     def init_065_wait_healthy(self):
-        # others wait on barrier
+        # others wait for rpc from us
         ceph.wait_until_healthy(self)
 
-        utils.system('{bindir}/ceph -c {conf} -s'.format(
-                bindir=self.ceph_bindir,
-                conf=self.ceph_conf.filename,
-                ))
+        for idx in range(len(self.all_roles)):
+            # copy mon key and initial monmap
+            print 'Telling node {idx} cluster is healthy'.format(idx=idx)
+            g = self.clients[idx].call('set_healthy')
+            # TODO run in parallel
+            g.get()
+
+    def rpc_set_healthy(self):
+        self.wait_healthy.set()
 
     def init_069_barrier_healthy(self):
-        # server is now healthy
-        barrier_ids = ['{ip}#cluster'.format(ip=ip) for ip in self.all_ips]
-        self.job.barrier(
-            hostid=barrier_ids[self.number],
-            tag='healthy',
-            ).rendezvous(*barrier_ids)
+        # wait until notified that cluster is healthy
+        self.wait_healthy.get()
 
     def client_is_type(self, id_, type_):
         """
