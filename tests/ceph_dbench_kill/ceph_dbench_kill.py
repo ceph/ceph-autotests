@@ -42,7 +42,7 @@ class ceph_dbench_kill(skeleton.CephTest):
                 self.daemons_via_rpc[role] = g
                 g.get()
                 # avoid getting too anxious with the killing
-                ceph.wait_until_healthy(self)
+#                ceph.wait_until_healthy(self)
                 time.sleep(60)
 
         self.killer_greenlet = gevent.spawn(killer)
