@@ -513,6 +513,7 @@ class CephTest(test.test):
     def rpc_run_osd(self, id_):
         role = 'osd.{id}'.format(id=id_)
         assert role in self.my_roles
+        print 'Starting daemon %r' % role
         proc = utils.BgJob(command='{bindir}/cosd -f -i {id} -c ceph.conf'.format(
                 bindir=self.ceph_bindir,
                 id=id_,
@@ -523,6 +524,7 @@ class CephTest(test.test):
         p2 = self.daemons_from_rpc.pop(role)
         assert p2 is proc
         assert proc.result.exit_status is not None
+        print 'Daemon %r exited with %r' % (role, proc.result.exit_status)
         return proc.result.exit_status
 
     def rpc_terminate_osd(self, id_):
