@@ -73,6 +73,6 @@ class ceph_dbench_kill(skeleton.CephTest):
                 )
 
     @skeleton.role('mon.0')
-    def hook_postprocess_199_stop_killer(self):
+    def hook_postprocess_920_stop_killer(self):
         self.killer_done = True
         self.killer_greenlet.get()
