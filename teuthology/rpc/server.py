@@ -29,6 +29,7 @@ def serve(req, sock, lookup):
         res = fn(**req.get('args', []))
     except Exception as e:
         log.exception('RPC call failed: method %r', method)
+        # TODO pass structured data from some exceptions to caller?
         msg = dict(
             id=id_,
             status='error',
