@@ -70,12 +70,13 @@ def create_simple_monmap(test):
     """
     Writes a simple monmap based on current ceph.conf into <tmpdir>/monmap.
 
-    Assumes test.ceph_conf is up to date.
+    Assumes ceph_conf is up to date.
 
     Assumes mon sections are named "mon.*", with the dot.
     """
     def gen_addresses():
-        for section, data in test.ceph_conf.iteritems():
+        conf = configobj.ConfigObj(infile='ceph.conf', file_error=True)
+        for section, data in conf.iteritems():
             PREFIX = 'mon.'
             if not section.startswith(PREFIX):
                 continue
