@@ -1,3 +1,4 @@
+import configobj
 import functools
 import gevent.server
 import gevent.event
@@ -100,6 +101,11 @@ class CephTest(test.test):
             'usr/local/lib/python2.6/dist-packages')
         self.ceph_libdir = os.path.join(self.bindir, 'usr/local/lib')
         self.daemons = []
+        # map role -> daemon on the node that actually has the process
+        self.daemons_from_rpc = {}
+
+        # map role -> greenlet running the daemon on mon.0
+        self.daemons_via_rpc = {}
 
         # variables used to communicate between rpc methods and
         # autotest functions; these need to be set before the rpc
@@ -287,7 +293,7 @@ class CephTest(test.test):
 
     @role('mon.0')
     def init_020_ceph_conf(self):
-        conf = ceph.skeleton_config(self)
+        conf = ceph.skeleton_config()
 
         mons = self.get_mons()
         for role, addr in mons.iteritems():
@@ -303,14 +309,14 @@ class CephTest(test.test):
                 conf2.setdefault(section, {})
                 conf2[section]['keyring'] = 'client.{id}.keyring'.format(id=id_)
 
-            g = self.clients[idx].call('set_ceph_conf', conf2.dict())
+            g = self.clients[idx].call('set_ceph_conf', conf=conf2.dict())
             g.get()
 
     def rpc_set_ceph_conf(self, conf):
         # conf should be a dict-of-dicts
         o = configobj.ConfigObj()
         o.merge(conf)
-        o.filename = os.path.join(job.tmpdir, 'ceph.conf')
+        o.filename = os.path.join(self.tmpdir, 'ceph.conf')
         o.write()
 
     @role('mon.0')
@@ -504,14 +510,42 @@ class CephTest(test.test):
                     id=id_,
                     ))
 
-    @role('osd')
+    def rpc_run_osd(self, id_):
+        role = 'osd.{id}'.format(id=id_)
+        assert role in self.my_roles
+        print 'Starting daemon %r' % role
+        proc = utils.BgJob(command='{bindir}/cosd -f -i {id} -c ceph.conf'.format(
+                bindir=self.ceph_bindir,
+                id=id_,
+                ))
+        assert role not in self.daemons_from_rpc
+        self.daemons_from_rpc[role] = proc
+        utils.join_bg_jobs([proc])
+        p2 = self.daemons_from_rpc.pop(role)
+        assert p2 is proc
+        assert proc.result.exit_status is not None
+        print 'Daemon %r exited with %r' % (role, proc.result.exit_status)
+        return proc.result.exit_status
+
+    def rpc_terminate_osd(self, id_):
+        role = 'osd.{id}'.format(id=id_)
+        assert role in self.my_roles
+        proc = self.daemons_from_rpc.get(role)
+        assert proc is not None
+        proc.sp.terminate()
+
+    @role('mon.0')
     def init_062_osd_start(self):
-        for id_ in roles_of_type(self.my_roles, 'osd'):
-            proc = utils.BgJob(command='{bindir}/cosd -f -i {id} -c ceph.conf'.format(
-                    bindir=self.ceph_bindir,
-                    id=id_,
-                    ))
-            self.daemons.append(proc)
+        for idx, roles in enumerate(self.all_roles):
+            for id_ in roles_of_type(roles, 'osd'):
+                role = 'osd.{id}'.format(id=id_)
+                print 'Running osd on node {idx}'.format(idx=idx)
+                g = self.clients[idx].call(
+                    'run_osd',
+                    id_=id_,
+                    )
+                assert role not in self.daemons_via_rpc
+                self.daemons_via_rpc[role] = g
 
     @role('mds')
     def init_063_mds_start(self):
@@ -765,6 +799,27 @@ class CephTest(test.test):
             hostid=barrier_ids[self.number],
             tag='done',
             ).rendezvous(*barrier_ids)
+
+    @role('mon.0')
+    def hook_postprocess_940_daemon_shutdown_rpc(self):
+        for idx, roles in enumerate(self.all_roles):
+            for id_ in roles_of_type(roles, 'osd'):
+                role = 'osd.{id}'.format(id=id_)
+                g = self.daemons_via_rpc.pop(role, None)
+                if g is None:
+                    continue
+                stop = self.clients[idx].call(
+                    'terminate_osd',
+                    id_=id_,
+                    )
+                stop.get()
+                res = g.get()
+                assert res.get('status') == 'ok', 'Bad daemon %r status: %r' % (role, res)
+                status = res['data']
+                assert status in [0, -signal.SIGTERM], \
+                    'daemon %r failed with: %r' % (role, status)
+
+        assert not self.daemons_via_rpc
 
     def hook_postprocess_950_daemon_shutdown(self):
         for d in self.daemons:
