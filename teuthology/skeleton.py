@@ -151,9 +151,8 @@ class CephTest(test.test):
 
     def get_secret(self, id_):
         secret = utils.run(
-            '{bindir}/cauthtool client.{id}.keyring -c {conf} --name=client.{id} -p'.format(
+            '{bindir}/cauthtool client.{id}.keyring -c ceph.conf --name=client.{id} -p'.format(
                 bindir=self.ceph_bindir,
-                conf=self.ceph_conf.filename,
                 id=id_,
                 ),
             verbose=False,
@@ -373,25 +372,22 @@ class CephTest(test.test):
         utils.system('{bindir}/osdmaptool --clobber --createsimple {num_osd} osdmap --pg_bits 2 --pgp_bits 4'.format(
                 num_osd=num_instances_of_type(self.all_roles, 'osd'),
                 bindir=self.ceph_bindir,
-                conf=self.ceph_conf.filename,
                 ))
 
     @role('mon')
     def init_042_daemons_mon_mkfs(self):
         for id_ in roles_of_type(self.my_roles, 'mon'):
-            utils.system('{bindir}/cmon --mkfs -i {id} -c {conf} --monmap=monmap --osdmap=osdmap --keyring=ceph.keyring'.format(
+            utils.system('{bindir}/cmon --mkfs -i {id} -c ceph.conf --monmap=monmap --osdmap=osdmap --keyring=ceph.keyring'.format(
                     bindir=self.ceph_bindir,
                     id=id_,
-                    conf=self.ceph_conf.filename,
                     ))
 
     @role('mon')
     def init_045_daemons_mon_start(self):
         for id_ in roles_of_type(self.my_roles, 'mon'):
-            proc = utils.BgJob(command='{bindir}/cmon -f -i {id} -c {conf}'.format(
+            proc = utils.BgJob(command='{bindir}/cmon -f -i {id} -c ceph.conf'.format(
                     bindir=self.ceph_bindir,
                     id=id_,
-                    conf=self.ceph_conf.filename,
                     ))
             self.daemons.append(proc)
 
@@ -466,9 +462,8 @@ class CephTest(test.test):
                                 id=id_,
                                 caps=self.generate_caps(type_, id_),
                                 ))
-                        utils.system('{bindir}/ceph -c {conf} -k ceph.keyring -i temp.keyring auth add {type}.{id}'.format(
+                        utils.system('{bindir}/ceph -c ceph.conf -k ceph.keyring -i temp.keyring auth add {type}.{id}'.format(
                                 bindir=self.ceph_bindir,
-                                conf=self.ceph_conf.filename,
                                 type=type_,
                                 id=id_,
                                 ))
@@ -487,9 +482,8 @@ class CephTest(test.test):
     @role('mon.0')
     def init_056_set_max_mds(self):
         # TODO where does this belong?
-        utils.system('{bindir}/ceph -c {conf} -k ceph.keyring mds set_max_mds {num_mds}'.format(
+        utils.system('{bindir}/ceph -c ceph.conf -k ceph.keyring mds set_max_mds {num_mds}'.format(
                 bindir=self.ceph_bindir,
-                conf=self.ceph_conf.filename,
                 num_mds=num_instances_of_type(self.all_roles, 'mds'),
                 ))
 
@@ -497,29 +491,26 @@ class CephTest(test.test):
     def init_061_osd_mkfs(self):
         for id_ in roles_of_type(self.my_roles, 'osd'):
             os.mkdir(os.path.join('dev', 'osd.{id}.data'.format(id=id_)))
-            utils.system('{bindir}/cosd --mkfs -i {id} -c {conf}'.format(
+            utils.system('{bindir}/cosd --mkfs -i {id} -c ceph.conf'.format(
                     bindir=self.ceph_bindir,
                     id=id_,
-                    conf=self.ceph_conf.filename,
                     ))
 
     @role('osd')
     def init_062_osd_start(self):
         for id_ in roles_of_type(self.my_roles, 'osd'):
-            proc = utils.BgJob(command='{bindir}/cosd -f -i {id} -c {conf}'.format(
+            proc = utils.BgJob(command='{bindir}/cosd -f -i {id} -c ceph.conf'.format(
                     bindir=self.ceph_bindir,
                     id=id_,
-                    conf=self.ceph_conf.filename,
                     ))
             self.daemons.append(proc)
 
     @role('mds')
     def init_063_mds_start(self):
         for id_ in roles_of_type(self.my_roles, 'mds'):
-            proc = utils.BgJob(command='{bindir}/cmds -f -i {id} -c {conf}'.format(
+            proc = utils.BgJob(command='{bindir}/cmds -f -i {id} -c ceph.conf'.format(
                     bindir=self.ceph_bindir,
                     id=id_,
-                    conf=self.ceph_conf.filename,
                     ))
             self.daemons.append(proc)
 
@@ -565,9 +556,8 @@ class CephTest(test.test):
                 # we could use -m instead of ceph.conf, but as we need
                 # ceph.conf to find the keyring anyway, it's not yet worth it
 
-                command='{bindir}/cfuse -f -c {conf} --name=client.{id} {mnt}'.format(
+                command='{bindir}/cfuse -f -c ceph.conf --name=client.{id} {mnt}'.format(
                     bindir=self.ceph_bindir,
-                    conf=self.ceph_conf.filename,
                     id=id_,
                     mnt=mnt,
                     ),
@@ -612,15 +602,13 @@ class CephTest(test.test):
                 class_file=rbd_file,
                 ))
         cls_info = cls_info.stdout.rstrip('\n')
-        utils.system('{bindir}/ceph -c {conf} --name client.admin class add -i {rbd_file} {cls_info}'.format(
+        utils.system('{bindir}/ceph -c ceph.conf --name client.admin class add -i {rbd_file} {cls_info}'.format(
                 bindir=self.ceph_bindir,
-                conf=self.ceph_conf.filename,
                 rbd_file=rbd_file,
                 cls_info=cls_info,
                 ))
-        utils.system('{bindir}/ceph -c {conf} --name client.admin class activate rbd {rbd_version}'.format(
+        utils.system('{bindir}/ceph -c ceph.conf --name client.admin class activate rbd {rbd_version}'.format(
                 bindir=self.ceph_bindir,
-                conf=self.ceph_conf.filename,
                 rbd_version='1.3',
                 ))
 

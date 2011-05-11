@@ -25,9 +25,8 @@ def wait_until_healthy(test):
     """Wait until a Ceph cluster is healthy."""
     while True:
         health = utils.run(
-            '{bindir}/ceph -c {conf} health --concise'.format(
+            '{bindir}/ceph -c ceph.conf health --concise'.format(
                 bindir=test.ceph_bindir,
-                conf=test.ceph_conf.filename,
                 ),
             verbose=False,
             )
