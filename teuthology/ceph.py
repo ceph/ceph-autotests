@@ -62,8 +62,6 @@ def skeleton_config(job):
     """
     path = os.path.join(os.path.dirname(__file__), 'ceph.conf')
     o = configobj.ConfigObj(path, file_error=True)
-    # override this if you don't like it
-    o.filename = os.path.join(job.tmpdir, 'ceph.conf')
     return o
 
 def create_simple_monmap(test):

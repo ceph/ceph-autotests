@@ -285,25 +285,33 @@ class CephTest(test.test):
             for ip in self.all_ips
             ]
 
-    def init_020_conf_create(self):
-        self.ceph_conf = ceph.skeleton_config(self)
+    @role('mon.0')
+    def init_020_ceph_conf(self):
+        conf = ceph.skeleton_config(self)
 
-    def init_021_conf_add_mons(self):
         mons = self.get_mons()
         for role, addr in mons.iteritems():
-            self.ceph_conf.setdefault(role, {})
-            self.ceph_conf[role]['mon addr'] = addr
+            conf.setdefault(role, {})
+            conf[role]['mon addr'] = addr
 
-    @role('client')
-    def init_025_conf_client_keyring(self):
-        for id_ in roles_of_type(self.my_roles, 'client'):
-            section = 'client.{id}'.format(id=id_)
-            self.ceph_conf.setdefault(section, {})
-            self.ceph_conf[section]['keyring'] = 'client.{id}.keyring'.format(id=id_)
+        for idx, roles in enumerate(self.all_roles):
+            conf2 = configobj.ConfigObj()
+            conf2.merge(conf)
 
-    def init_029_conf_write(self):
-        self.ceph_conf.write()
-        print 'Wrote config to', self.ceph_conf.filename
+            for id_ in roles_of_type(roles, 'client'):
+                section = 'client.{id}'.format(id=id_)
+                conf2.setdefault(section, {})
+                conf2[section]['keyring'] = 'client.{id}.keyring'.format(id=id_)
+
+            g = self.clients[idx].call('set_ceph_conf', conf2.dict())
+            g.get()
+
+    def rpc_set_ceph_conf(self, conf):
+        # conf should be a dict-of-dicts
+        o = configobj.ConfigObj()
+        o.merge(conf)
+        o.filename = os.path.join(job.tmpdir, 'ceph.conf')
+        o.write()
 
     @role('mon.0')
     def init_030_create_keyring(self):
