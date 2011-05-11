@@ -15,8 +15,10 @@ class ceph_dbench_kill(skeleton.CephTest):
 
     @skeleton.role('mon.0')
     def init_100_start_killer(self):
+        print 'INIT 100 CWD IS', os.getcwd()
         self.killer_done = False
         def killer():
+            print 'KILLER CWD IS', os.getcwd()
             while not self.killer_done:
                 max_num = skeleton.num_instances_of_type(self.all_roles, 'osd')
                 victim = random.randrange(max_num)
