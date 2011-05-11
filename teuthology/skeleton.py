@@ -501,14 +501,14 @@ class CephTest(test.test):
                 num_mds=num_instances_of_type(self.all_roles, 'mds'),
                 ))
 
-    @role('osd')
-    def init_061_osd_mkfs(self):
-        for id_ in roles_of_type(self.my_roles, 'osd'):
-            os.mkdir(os.path.join('dev', 'osd.{id}.data'.format(id=id_)))
-            utils.system('{bindir}/cosd --mkfs -i {id} -c ceph.conf'.format(
-                    bindir=self.ceph_bindir,
-                    id=id_,
-                    ))
+    def rpc_mkfs_osd(self, id_):
+        role = 'osd.{id}'.format(id=id_)
+        assert role in self.my_roles
+        os.mkdir(os.path.join('dev', 'osd.{id}.data'.format(id=id_)))
+        utils.system('{bindir}/cosd --mkfs -i {id} -c ceph.conf'.format(
+                bindir=self.ceph_bindir,
+                id=id_,
+                ))
 
     def rpc_run_osd(self, id_):
         role = 'osd.{id}'.format(id=id_)
@@ -539,6 +539,14 @@ class CephTest(test.test):
         for idx, roles in enumerate(self.all_roles):
             for id_ in roles_of_type(roles, 'osd'):
                 role = 'osd.{id}'.format(id=id_)
+
+                print 'mkfs osd on node {idx}'.format(idx=idx)
+                g = self.clients[idx].call(
+                    'mkfs_osd',
+                    id_=id_,
+                    )
+                g.get()
+
                 print 'Running osd on node {idx}'.format(idx=idx)
                 g = self.clients[idx].call(
                     'run_osd',
