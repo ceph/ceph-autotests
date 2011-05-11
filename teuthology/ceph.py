@@ -52,7 +52,7 @@ def wait_until_fuse_mounted(test, fuse, mountpoint):
         time.sleep(5)
     log.info('cfuse is mounted on %s', mountpoint)
 
-def skeleton_config(job):
+def skeleton_config():
     """
     Returns a ConfigObj that's prefilled with a skeleton config.
 
