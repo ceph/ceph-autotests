@@ -17,20 +17,28 @@ class ceph_dbench_kill(skeleton.CephTest):
         self.killer_done = False
         def killer():
             while not self.killer_done:
-                print 'Killing an osd'
                 max_num = skeleton.num_instances_of_type(self.all_roles, 'osd')
                 victim = random.randrange(max_num)
                 role = 'osd.{id}'.format(id=victim)
+                print 'Killing daemon %r' % role
+                assert role in self.daemons_via_rpc
                 idx = skeleton.server_with_role(self.all_roles, role)
                 g = self.clients[idx].call(
                     'terminate_osd',
                     id_=victim,
                     )
                 g.get()
+                g = self.daemons_via_rpc.pop(role)
+                res = g.get()
+                assert res.get('status') == 'ok', 'Bad daemon %r status: %r' % (role, res)
+                status = res['data']
+                assert status in [0, -signal.SIGTERM], \
+                    'daemon %r failed with: %r' % (role, status)
                 g = self.clients[idx].call(
                     'run_osd',
                     id_=victim,
                     )
+                self.daemons_via_rpc.pop[role] = g
                 g.get()
                 # avoid getting too anxious with the killing
                 ceph.wait_until_healthy(self)
