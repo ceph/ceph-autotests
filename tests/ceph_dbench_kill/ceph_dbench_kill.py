@@ -39,7 +39,7 @@ class ceph_dbench_kill(skeleton.CephTest):
                     'run_osd',
                     id_=victim,
                     )
-                self.daemons_via_rpc.pop[role] = g
+                self.daemons_via_rpc[role] = g
                 g.get()
                 # avoid getting too anxious with the killing
                 ceph.wait_until_healthy(self)
