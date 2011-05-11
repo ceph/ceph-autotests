@@ -811,7 +811,9 @@ class CephTest(test.test):
                     id_=id_,
                     )
                 stop.get()
-                status = g.get()
+                res = g.get()
+                assert res.get('status') == 'ok', 'Bad daemon %r status: %r' % (role, res)
+                status = res['data']
                 assert status in [0, -signal.SIGTERM], \
                     'daemon %r failed with: %r' % (role, status)
 
