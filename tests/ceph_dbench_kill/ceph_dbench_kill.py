@@ -2,6 +2,7 @@ import gevent
 import os
 import random
 import shutil
+import signal
 import time
 
 from autotest_lib.client.bin import utils
