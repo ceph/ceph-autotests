@@ -136,6 +136,10 @@ class CephTest(test.test):
         self.run_hooks(prefix='do')
 
     def postprocess(self):
+        print 'CWD', os.getcwd()
+        print 'Entering tmp directory:', self.tmpdir
+        os.chdir(self.tmpdir)
+
         self.run_hooks(prefix='hook_postprocess')
 
         self.server.stop()
