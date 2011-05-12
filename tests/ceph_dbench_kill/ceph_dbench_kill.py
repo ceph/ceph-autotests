@@ -30,7 +30,13 @@ class ceph_dbench_kill(skeleton.CephTest):
                     'terminate_osd',
                     id_=victim,
                     )
-                g.get()
+                try:
+                    g.get()
+                except client.RPCError as e:
+                    if e.code == 'DaemonNotRunningError':
+                        pass
+                    else:
+                        raise
                 g = self.daemons_via_rpc.pop(role)
                 status = g.get()
                 assert status in [0, -signal.SIGTERM], \
