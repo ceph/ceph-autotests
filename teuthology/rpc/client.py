@@ -57,7 +57,7 @@ class Client(object):
                 msg = data.get('msg', 'Unknown RPC error: {data}'.format(data=data))
                 res.set_exception(RPCError(msg))
             else:
-                res.set(data)
+                res.set(data.get('data'))
 
         # EOF
         if self.pending:
