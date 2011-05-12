@@ -36,11 +36,15 @@ def connect_forever(sock, address):
 class RPCError(Exception):
     """RPC Error"""
 
-    def __init__(self, msg):
+    def __init__(self, msg, code):
         self.msg = msg
+        self.code = code
 
     def __str__(self):
-        return '{name}: {message}'.format(name=self.__doc__, message=self.msg)
+        message = self.msg
+        if self.code is not None:
+            message = '{code}: {message}'.format(code=self.code, message=message)
+        return '{name}: {message}'.format(name=self.__doc__, message=message)
 
 class Client(object):
     def __init__(self, address, cookie):
@@ -61,7 +65,8 @@ class Client(object):
             res = self.pending[id_]
             if data.get('status', None) != 'ok':
                 msg = data.get('msg', 'Unknown RPC error: {data}'.format(data=data))
-                res.set_exception(RPCError(msg))
+                code = data.get('code')
+                res.set_exception(RPCError(msg=msg, code=code))
             else:
                 res.set(data.get('data'))
 
