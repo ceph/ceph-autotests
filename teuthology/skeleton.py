@@ -516,10 +516,27 @@ class CephTest(test.test):
         role = 'osd.{id}'.format(id=id_)
         assert role in self.my_roles
         os.mkdir(os.path.join('dev', 'osd.{id}.data'.format(id=id_)))
-        utils.system('{bindir}/cosd --mkfs -i {id} -c ceph.conf'.format(
-                bindir=self.ceph_bindir,
-                id=id_,
-                ))
+        p = subprocess.Popen(
+            args=[
+                os.path.join(self.ceph_bindir, 'cosd'),
+                '--mkfs',
+                '-i', str(id_),
+                '-c', 'ceph.conf'
+                ],
+            close_fds=True,
+            cwd=self.tmpdir,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            )
+        (out, err) = p.communicate()
+        for line in out.splitlines():
+            log.debug('osd mkfs stdout: %s', line)
+        for line in err.splitlines():
+            log.warning('osd mkfs stderr: %s', line)
+        assert p.returncode is not None
+        if p.returncode != 0:
+            raise RuntimeError('osd mkfs failed with exit status %r' % p.returncode)
 
     def rpc_run_osd(self, id_):
         role = 'osd.{id}'.format(id=id_)
