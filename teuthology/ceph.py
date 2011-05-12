@@ -3,6 +3,7 @@ import errno
 import logging
 import os
 import socket
+import subprocess
 import time
 import urllib2
 
@@ -24,14 +25,28 @@ def get_binaries(test, url=None):
 def wait_until_healthy(test):
     """Wait until a Ceph cluster is healthy."""
     while True:
-        health = utils.run(
-            '{bindir}/ceph -c ceph.conf health --concise'.format(
-                bindir=test.ceph_bindir,
-                ),
-            verbose=False,
+        p = subprocess.Popen(
+            args=[
+                '{bindir}/ceph'.format(bindir=test.ceph_bindir),
+                '-c', 'ceph.conf',
+                'health',
+                '--concise',
+                ],
+            close_fds=True,
+            cwd=test.tmpdir,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             )
-        log.debug('Ceph health: %s', health.stdout.rstrip('\n'))
-        if health.stdout.split(None, 1)[0] == 'HEALTH_OK':
+        (out, err) = p.communicate()
+        assert p.returncode is not None
+        if p.returncode != 0:
+            raise RuntimeError('health check failed with exit status %r' % p.returncode)
+        if err:
+            for line in err.splitlines():
+                log.warning('Ceph health stderr: %s', line)
+        log.debug('Ceph health: %s', out.rstrip('\n'))
+        if out.split(None, 1)[0] == 'HEALTH_OK':
             break
         time.sleep(1)
 

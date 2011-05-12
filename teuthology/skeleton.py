@@ -346,11 +346,11 @@ class CephTest(test.test):
         ceph.create_simple_monmap(self)
 
     def rpc_receive_mon0_info(self, key, monmap):
-        with file('ceph.keyring', 'w') as f:
+        with file(os.path.join(self.tmpdir, 'ceph.keyring'), 'w') as f:
             f.write(key)
         # decode monmap because json can't transport binary
         monmap = monmap.decode('base64')
-        with file('monmap', 'w') as f:
+        with file(os.path.join(self.tmpdir, 'monmap'), 'w') as f:
             f.write(monmap)
         self.mon0_info.set(None)
 
