@@ -17,6 +17,10 @@ from . import ceph
 
 log = logging.getLogger(__name__)
 
+logging.basicConfig(
+    level=logging.DEBUG,
+    )
+
 RPC_PORT = 51991 # 0xCEFF ;)
 
 def roles_of_type(my_roles, type_):

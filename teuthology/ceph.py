@@ -11,6 +11,10 @@ from autotest_lib.client.bin import utils
 
 log = logging.getLogger(__name__)
 
+logging.basicConfig(
+    level=logging.DEBUG,
+    )
+
 def get_binaries(test, url=None):
     """Fetch and unpack Ceph binary tarball."""
     machine = os.uname()[4]

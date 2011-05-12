@@ -10,6 +10,10 @@ from . import util
 
 log = logging.getLogger(__name__)
 
+logging.basicConfig(
+    level=logging.DEBUG,
+    )
+
 def connect_forever(sock, address):
     MAX_DELAY = 30
     delay = 0.1

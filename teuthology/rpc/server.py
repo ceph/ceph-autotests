@@ -9,6 +9,10 @@ from . import util
 
 log = logging.getLogger(__name__)
 
+logging.basicConfig(
+    level=logging.DEBUG,
+    )
+
 class RPCError(Exception):
     pass
 
