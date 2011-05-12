@@ -9,6 +9,7 @@ from autotest_lib.client.bin import utils
 
 from teuthology import ceph
 from teuthology import skeleton
+from teuthology.rpc import client
 
 class ceph_dbench_kill(skeleton.CephTest):
     version = 1
