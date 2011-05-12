@@ -550,7 +550,7 @@ class CephTest(test.test):
         role = 'osd.{id}'.format(id=id_)
         assert role in self.my_roles
         print 'Starting daemon %r' % role
-        proc = utils.BgJob(command='cd {tmpdir} && {bindir}/cosd -f -i {id} -c ceph.conf'.format(
+        proc = utils.BgJob(command='cd {tmpdir} && exec {bindir}/cosd -f -i {id} -c ceph.conf'.format(
                 tmpdir=self.tmpdir,
                 bindir=self.ceph_bindir,
                 id=id_,
