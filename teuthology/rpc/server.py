@@ -33,6 +33,7 @@ def serve(req, sock, lookup):
         msg = dict(
             id=id_,
             status='error',
+            code=e.__class__.__name__,
             msg=str(e),
             )
     else:
