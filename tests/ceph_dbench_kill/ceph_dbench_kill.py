@@ -42,6 +42,7 @@ class ceph_dbench_kill(skeleton.CephTest):
                 status = g.get()
                 assert status in [0, -signal.SIGTERM], \
                     'daemon %r failed with: %r' % (role, status)
+                time.sleep(60)
                 g = self.clients[idx].call(
                     'run_osd',
                     id_=victim,
