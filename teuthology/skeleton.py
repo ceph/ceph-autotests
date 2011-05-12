@@ -5,6 +5,7 @@ import gevent.event
 import os
 import signal
 import stat
+import subprocess
 
 from autotest_lib.client.bin import test
 from autotest_lib.client.bin import utils
