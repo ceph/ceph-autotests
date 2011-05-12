@@ -32,9 +32,7 @@ class ceph_dbench_kill(skeleton.CephTest):
                     )
                 g.get()
                 g = self.daemons_via_rpc.pop(role)
-                res = g.get()
-                assert res.get('status') == 'ok', 'Bad daemon %r status: %r' % (role, res)
-                status = res['data']
+                status = g.get()
                 assert status in [0, -signal.SIGTERM], \
                     'daemon %r failed with: %r' % (role, status)
                 g = self.clients[idx].call(
