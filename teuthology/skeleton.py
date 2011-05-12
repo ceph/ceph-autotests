@@ -2,6 +2,7 @@ import configobj
 import functools
 import gevent.server
 import gevent.event
+import logging
 import os
 import signal
 import stat
@@ -13,6 +14,8 @@ from autotest_lib.client.bin import utils
 from .rpc import server
 from .rpc import client
 from . import ceph
+
+log = logging.getLogger(__name__)
 
 RPC_PORT = 51991 # 0xCEFF ;)
 
