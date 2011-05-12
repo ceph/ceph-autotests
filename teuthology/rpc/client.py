@@ -34,7 +34,13 @@ def connect_forever(sock, address):
             delay = MAX_DELAY
 
 class RPCError(Exception):
-    pass
+    """RPC Error"""
+
+    def __init__(self, msg):
+        self.msg = msg
+
+    def __str__(self):
+        return '{name}: {message}'.format(name=self.__doc__, message=self.msg)
 
 class Client(object):
     def __init__(self, address, cookie):
