@@ -72,6 +72,13 @@ client_config_defaults = {
     'rbd_size'         : 4096,
     }
 
+class DaemonNotRunningError(Exception):
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
+
+    def __str__(self):
+        return 'Daemon {role} is not running.'.format(**self.kwargs)
+
 class CephTest(test.test):
     def run_hooks(self, prefix):
         hooks = sorted(name for name in dir(self) if name.startswith('{prefix}_'.format(prefix=prefix)))
@@ -535,7 +542,8 @@ class CephTest(test.test):
         role = 'osd.{id}'.format(id=id_)
         assert role in self.my_roles
         proc = self.daemons_from_rpc.get(role)
-        assert proc is not None
+        if proc is None:
+            raise DaemonNotRunningError(role=role)
         proc.sp.terminate()
 
     @role('mon.0')
@@ -824,7 +832,13 @@ class CephTest(test.test):
                     'terminate_osd',
                     id_=id_,
                     )
-                stop.get()
+                try:
+                    stop.get()
+                except client.RPCError as e:
+                    if e.code == 'DaemonNotRunningError':
+                        pass
+                    else:
+                        raise
                 status = g.get()
                 assert status in [0, -signal.SIGTERM], \
                     'daemon %r failed with: %r' % (role, status)
